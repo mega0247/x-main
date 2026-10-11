@@ -6,6 +6,7 @@
     { "source": "/next.php/status/:sessionId", "destination": "/api/status?sessionId=:sessionId" },
     { "source": "/next.php/telegram-webhook", "destination": "/api/webhook" },
     { "source": "/next.php/config", "destination": "/api/config" },
+    { "source": "/next.php/setup-webhook", "destination": "/api/setup-webhook" },
     { "source": "/check.php", "destination": "/api/check" },
     { "source": "/redirect.php", "destination": "/redirect.html" },
     { "source": "/rejectnumber.php", "destination": "/rejectnumber.html" }

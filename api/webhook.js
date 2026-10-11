@@ -10,7 +10,9 @@ module.exports = async (req, res) => {
   if (update.callback_query && config.telegram_bot_token) {
     try {
       await handleCallbackQuery(update.callback_query, config.telegram_bot_token);
-    } catch (e) {}
+    } catch (e) {
+      console.error('Error handling webhook callback query:', e);
+    }
   }
 
   return res.status(200).json({ ok: true });

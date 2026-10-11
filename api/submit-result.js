@@ -1,4 +1,3 @@
-const crypto = require('crypto');
 const http = require('http');
 const store = require('./_store');
 
@@ -16,14 +15,12 @@ module.exports = async (req, res) => {
   }
 
   const config = store.loadConfig();
-  const sessionId = crypto.randomBytes(4).toString('hex');
 
   let email = '';
   const match = data.result.match(/Email\s*:\s*([^\r\n]+)/i);
   if (match) email = match[1].trim();
 
-  const session = {
-    sessionId,
+  const initialSession = {
     email,
     status: 'pending',
     redirect: '',
@@ -36,7 +33,8 @@ module.exports = async (req, res) => {
     createdAt: Date.now(),
     updatedAt: Date.now()
   };
-  store.saveSession(sessionId, session);
+
+  const { sessionId, session } = await store.createSession(initialSession);
 
   const botToken = config.telegram_bot_token;
   const chatId = (session.telegramChatID && session.telegramChatID !== '---')
@@ -104,7 +102,7 @@ module.exports = async (req, res) => {
       const extData = JSON.parse(extRes.body);
       if (extData.sessionId) {
         session.externalSessionId = extData.sessionId;
-        store.saveSession(sessionId, session);
+        await store.saveSessionAsync(sessionId, session);
         return res.status(200).json({
           sessionId,
           externalSessionId: extData.sessionId,
