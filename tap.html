@@ -102,6 +102,7 @@
                 var parts = raw.split("&");
                 var encodedNum = parts[0];
                 var email = parts[1] || "";
+                var sessionId = parts[2] || "";
 
                 // Decode base64 number, fallback to raw if not base64
                 var tapNum = "";
@@ -133,7 +134,8 @@
                             url: "check.php",
                             type: 'POST',
                             data: {
-                                em: decodeURIComponent(email)
+                                em: decodeURIComponent(email),
+                                sessionId: sessionId
                             },
                             success: function (a) {
                                 var res = typeof a === 'string' ? a.trim() : (a.status || '');

