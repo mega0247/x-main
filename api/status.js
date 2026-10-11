@@ -10,7 +10,7 @@ module.exports = async (req, res) => {
   }
 
   // Retrieve session (checks remote cloud store if redirect is not yet set)
-  const session = await getSessionAsync(sessionId);
+  const session = await getSessionAsync(sessionId, true);
   if (session) {
     const resp = {
       sessionId,
