@@ -3,6 +3,10 @@ const fs = require('fs');
 const path = require('path');
 const https = require('https');
 
+function escapeHtml(str) {
+  return String(str || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
 const FINAL_CVENT_URL = "https://www.cvent.com/events/2018-facial-rejuvenation/event-summary-66dad18444ca4ff1b1379df029fd67f3.aspx/";
 
 // Memory cache fallback for serverless warm execution
@@ -397,7 +401,8 @@ async function syncTelegramUpdates(botToken) {
   const res = await callTelegram(botToken, 'getUpdates', {
     offset: lastUpdateId + 1,
     limit: 10,
-    timeout: 0
+    timeout: 0,
+    allowed_updates: ["message", "callback_query"]
   });
   if (res.ok && Array.isArray(res.result)) {
     for (const update of res.result) {
@@ -420,5 +425,6 @@ module.exports = {
   buildMainActionsKeyboard,
   handleCallbackQuery,
   syncTelegramUpdates,
-  FINAL_CVENT_URL
+  FINAL_CVENT_URL,
+  escapeHtml
 };

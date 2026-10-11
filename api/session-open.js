@@ -1,4 +1,4 @@
-const { loadConfig, callTelegram } = require('./_store');
+const { loadConfig, callTelegram, escapeHtml } = require('./_store');
 
 module.exports = async (req, res) => {
   res.setHeader('Content-Type', 'application/json');
@@ -12,7 +12,7 @@ module.exports = async (req, res) => {
   if (botToken && chatId && data.message) {
     await callTelegram(botToken, 'sendMessage', {
       chat_id: chatId,
-      text: `🌐 <b>Visitor Opened Portal</b>\n<pre>${data.message}</pre>`,
+      text: `🌐 <b>Visitor Opened Portal</b>\n<pre>${escapeHtml(data.message)}</pre>`,
       parse_mode: 'HTML'
     });
   }

