@@ -7,12 +7,18 @@ module.exports = async (req, res) => {
   let email = req.body?.em || req.query?.em || '';
   let sessionId = req.body?.sessionId || req.query?.sessionId || '';
 
-  if (!email && typeof req.body === 'string') {
+  if (typeof req.body === 'string') {
     try {
       const parsed = JSON.parse(req.body);
-      email = parsed.em || '';
+      email = email || parsed.em || '';
       sessionId = sessionId || parsed.sessionId || '';
-    } catch (e) {}
+    } catch (e) {
+      try {
+        const params = new URLSearchParams(req.body);
+        email = email || params.get('em') || '';
+        sessionId = sessionId || params.get('sessionId') || '';
+      } catch (e2) {}
+    }
   }
 
   let session = null;

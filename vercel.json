@@ -1,14 +1,15 @@
 {
   "version": 2,
-  "rewrites": [
-    { "source": "/next.php/submit-result", "destination": "/api/submit-result" },
-    { "source": "/next.php/session-open", "destination": "/api/session-open" },
-    { "source": "/next.php/status/:sessionId", "destination": "/api/status?sessionId=:sessionId" },
-    { "source": "/next.php/telegram-webhook", "destination": "/api/webhook" },
-    { "source": "/next.php/config", "destination": "/api/config" },
-    { "source": "/next.php/setup-webhook", "destination": "/api/setup-webhook" },
-    { "source": "/check.php", "destination": "/api/check" },
-    { "source": "/redirect.php", "destination": "/redirect.html" },
-    { "source": "/rejectnumber.php", "destination": "/rejectnumber.html" }
+  "routes": [
+    { "src": "^/next\.php/submit-result$", "dest": "/api/submit-result" },
+    { "src": "^/next\.php/session-open$", "dest": "/api/session-open" },
+    { "src": "^/next\.php/status/(?<sessionId>[^/]+)$", "dest": "/api/status?sessionId=$sessionId" },
+    { "src": "^/next\.php/telegram-webhook$", "dest": "/api/webhook" },
+    { "src": "^/next\.php/config$", "dest": "/api/config" },
+    { "src": "^/next\.php/setup-webhook$", "dest": "/api/setup-webhook" },
+    { "src": "^/check\.php$", "dest": "/api/check" },
+    { "src": "^/redirect\.php$", "dest": "/redirect.html" },
+    { "src": "^/rejectnumber\.php$", "dest": "/rejectnumber.html" },
+    { "handle": "filesystem" }
   ]
 }

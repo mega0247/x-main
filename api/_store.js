@@ -175,12 +175,19 @@ async function getSessionAsync(sessionId, forceRefresh = false) {
   if (!sessionId) return null;
   const local = getSession(sessionId);
 
-  // If local already has terminal redirect/action and forceRefresh is false, return it
-  if (local && local.redirect && !forceRefresh) {
+  // Only true terminal states (saved, approved, wrong_number) skip remote refresh
+  const isTerminal = local && (
+    local.status === 'saved' ||
+    local.status === 'approved' ||
+    local.status === 'wrong_number_pressed' ||
+    (local.redirect && (local.redirect.includes('cvent') || local.redirect === 'saved' || local.redirect === 'wrong_number'))
+  );
+
+  if (isTerminal && !forceRefresh) {
     return local;
   }
 
-  // If local has no redirect or forceRefresh is true: query remote store for latest operator selections
+  // Query remote store for latest operator selections (e.g. approve, reject, new action)
   if (sessionId && sessionId.length >= 24) {
     try {
       const res = await httpRequest(`https://api.restful-api.dev/objects/${sessionId}`, { method: 'GET' }, null, 2500);
