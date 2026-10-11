@@ -1,0 +1,22 @@
+# Enable PathInfo for next.php/endpoint URLs
+AcceptPathInfo On
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    # Block direct access to sessions data folder
+    RewriteRule ^data/ - [F,L]
+
+    # Protect licenseKey.json from public download if it contains secrets
+    <Files "licenseKey.json">
+        # Allow internal script reads while blocking direct HTTP browser downloads
+        Order Allow,Deny
+        Deny from all
+    </Files>
+
+    # Rewrite /api/* to next.php/* if called
+    RewriteRule ^api/submit-result next.php/submit-result [L,QSA]
+    RewriteRule ^api/session-open next.php/session-open [L,QSA]
+    RewriteRule ^api/status/(.*) next.php/status/$1 [L,QSA]
+</IfModule>

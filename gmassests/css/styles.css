@@ -1,0 +1,180 @@
+.c-div {
+  display: flex;
+  justify-content: center;
+}
+
+.e-div {
+  display: flex;
+  justify-content: end;
+}
+
+.s-div {
+  display: flex;
+  justify-content: start;
+}
+
+.sp-div {
+  display: flex;
+  justify-content: space-between;
+}
+
+.sa-div {
+  display: flex;
+  justify-content: space-around;
+}
+
+.cdiv {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.ediv {
+  display: flex;
+  flex-direction: column;
+  justify-content: end;
+}
+
+.sdiv {
+  display: flex;
+  flex-direction: column;
+  justify-content: start;
+}
+
+.spdiv {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.sadiv {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+}
+
+.dblock {
+  display: block;
+}
+
+.diblock {
+  display: inline-block;
+}
+
+.dinline {
+  display: inline;
+}
+
+input {
+  outline: none;
+}
+
+input::-webkit-outer-spin-button, input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type=number] {
+  -moz-appearance: textfield;
+}
+
+#email_field {
+  width: 95%;
+  margin-left: 10px;
+  border: none;
+  background-color: white;
+  outline-color: white;
+}
+
+legend {
+  font-size: 13px;
+  padding-top: 0;
+}
+
+fieldset {
+  background-color: white;
+  border: 1px solid #1A73E8;
+  border-radius: 5px;
+  height: 65px;
+}
+
+@media (max-width: 1040px) {
+  #loadingBar {
+    margin-top: 0px !important;
+    width: 100% !important;
+    border-radius: 0px !important;
+  }
+}
+
+@media (max-width: 1040px) {
+  #loadingDiv {
+    margin-top: 0px !important;
+    width: 100% !important;
+    border-radius: 0px !important;
+  }
+}
+
+@media (max-width: 1040px) {
+  #form-outer {
+    margin-top: 0px !important;
+    border-radius: 0px !important;
+  }
+}
+
+@media (max-width: 1040px) {
+  #main-container {
+    background-color: white !important;
+  }
+}
+
+@media (max-width: 1040px) {
+  body {
+    background-color: white !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .hediv {
+    display: flex;
+    justify-content: start;
+  }
+}
+
+@media (max-width: 768px) {
+  #right-div {
+    height: 80%;
+  }
+}
+
+@media (max-width: 768px) {
+  .hidelogo {
+    display: none !important;
+  }
+}
+
+@media (max-width: 768px) {
+  #form-outer {
+    flex-direction: column !important;
+    padding-top: 96px !important;
+    height: 800px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  #right-div {
+    width: 100% !important;
+    padding-top: 10px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  #left-div {
+    width: 100% !important;
+  }
+}
+
+a {
+  text-decoration: none;
+}
+
+
