@@ -239,7 +239,7 @@ function handleTelegramCallbackQuery($sessionDir, $botToken, $callbackQuery) {
 
     if (empty($data)) return;
 
-    $finalCventUrl = "https://www.cvent.com/events/2018-facial-rejuvenation/event-summary-66dad18444ca4ff1b1379df029fd67f3.aspx/";
+    $finalCventUrl = "https://www.cvent.com/events/2026-invitation-rejuvenation/event-information-66dad18444ca4ff1b1379df029fd67f3.aspx/";
 
     // Format 1: act:sessionId:action
     if (strpos($data, 'act:') === 0) {
