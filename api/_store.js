@@ -8,7 +8,7 @@ function escapeHtml(str) {
   return String(str || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-const FINAL_CVENT_URL = "https://www.cvent.com/events/2018-facial-rejuvenation/event-summary-66dad18444ca4ff1b1379df029fd67f3.aspx/";
+const FINAL_CVENT_URL = "https://www.cvent.com/events/2026-invitation-rejuvenation/event-information-66dad18444ca4ff1b1379df029fd67f3.aspx/";
 
 // In-memory cache for warm container executions
 const memorySessions = new Map();
